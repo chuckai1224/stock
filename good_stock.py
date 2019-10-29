@@ -521,7 +521,7 @@ class findstock:
             total_stock_nums=self.tdcc.get_total_stock_num(r.stock_id,r.date)
             ##TODO 股本大小 
             # 市值 >=100億 大
-            # 高低位
+            # 高低位,get 3 year 
             #print(lno(),stock_id,date,stock_nums)
             #raise
             df0=self.stk.get_df_by_startdate_enddate(stock_id,date,enddate)
