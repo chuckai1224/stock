@@ -719,9 +719,9 @@ class exchange_data:
         folder=datafolder()
         check_dst_folder(folder)
         if platform.system().upper()=='LINUX':
-            DB_CONNECT_STRING = 'sqlite:////{}/{}_exchange_data.db'.format(folder,market)
+            DB_CONNECT_STRING = 'sqlite:///sql/{}_exchange_data.db'.format(market)
         else:
-            DB_CONNECT_STRING = r'sqlite:///{}\{}_exchange_data.db'.format(folder,market)    
+            DB_CONNECT_STRING = 'sqlite:///sql/{}_exchange_data.db'.format(market)    
         #self.engine = create_engine(DB_CONNECT_STRING, echo=True)
         self.engine = create_engine(DB_CONNECT_STRING, echo=False)
         self.market=market
@@ -881,7 +881,7 @@ class stock_data:
             #print(lno(),date_str,df['stock_id'].values.tolist())
             cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(stock_id,date,enddate)
             try:
-            df_sql=pd.read_sql(cmd, con=self.con)  
+                df_sql=pd.read_sql(cmd, con=self.con)  
                 if len(df_sql)!=0:
                     repeat=1
                 else:

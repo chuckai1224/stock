@@ -477,8 +477,34 @@ class findstock:
             #print(lno(),df1)  
         tEnd = time.time()
         print ("It cost %.3f sec" % (tEnd - tStart))   
-    
+    """
+    1.集中：短、中、長期籌碼集中
+    2.糾結：均線糾結、準備翻揚向上
+    3.壓縮：過去一段時間價穩、量縮
+    4.突破：突破切線、頸線或是前波高點
+    5.帶量：有量增，但不是爆量
+    6.實紅：實體長紅，上影線長度不超過實體 1/2
+    1. 周K線 三線是費氏數列的 8MA、21MA、55MA   也可以使用常見的5MA 20MA 60MA 來判斷
+    2.指標：MACD位於零軸附近  MACD只要位於零軸附近  代表著均線很接近 可以快速判斷出均線糾結 和糾結的時間長度
+    3.線圖：直覺右下角  拉出 4-5 年的周線圖 劃出一條中間線  只要K棒位處於中間線的右下角  就能大膽的判斷出位階處於低位！
+    """
+    ## 均線糾結 https://blog.csdn.net/luoganttcc/article/details/80159025
+    ## part2 https://xstrader.net/%E6%95%A3%E6%88%B6%E7%9A%8450%E9%81%93%E9%9B%A3%E9%A1%8C%E7%8B%97%E5%B0%BE%E7%89%88%E4%B9%8B4%E5%A6%82%E4%BD%95%E5%88%A4%E6%96%B7%E4%B8%80%E6%AA%94%E8%82%A1%E7%A5%A8%E5%8F%AF%E4%BB%A5%E9%95%B7/
+    """
+    shortaverage = average(close,s1);
+    midaverage = average(close,s2);
+    Longaverage = average(close,s3);
+    value1= absvalue(shortaverage -midaverage);
+    value2= absvalue(midaverage -Longaverage);
+    value3= absvalue(Longaverage -shortaverage);
+    value4= maxlist(value1,value2,value3);
+    if value4*100 < Percent*Close
+    and linearregangle(value4,5)<10
+    then count=count+1;
+    end;
+    """   
     def analy(self,method,startdate,enddate):
+        ##TODO  df.shape[0]==>len(df)
         tStart = time.time()
         table_name=method
         cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
@@ -493,7 +519,9 @@ class findstock:
             stock_id=r.stock_id
             enddate= date + relativedelta(days=100)  
             total_stock_nums=self.tdcc.get_total_stock_num(r.stock_id,r.date)
-            ##TODO 股本大小 高低位
+            ##TODO 股本大小 
+            # 市值 >=100億 大
+            # 高低位
             #print(lno(),stock_id,date,stock_nums)
             #raise
             df0=self.stk.get_df_by_startdate_enddate(stock_id,date,enddate)
@@ -512,8 +540,8 @@ class findstock:
                 #print(lno(),df0)
                 #print(lno(),stock_id,date,enddate)
                 #raise   
-            return day5,day20,day60
-        df1[['day5','day20','day60']]=df1.apply(get_price,axis=1,result_type="expand")
+            return day5,day20,day60,int(total_stock_nums*df0.at[0,'close']/100000000) 
+        df1[['day5','day20','day60','市值(億)']]=df1.apply(get_price,axis=1,result_type="expand")
         print(lno(),df1)
         comm.to_html(df1,'out/buy_signal/{}_{}-{}.html'.format(table_name,startdate.strftime('%Y%m%d'),endtdate.strftime('%Y%m%d')))
         cnt=len(df1)
