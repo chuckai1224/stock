@@ -1028,14 +1028,19 @@ class tdcc_dist():
         ##TODO get total stock sql
         
         cols=['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29']
-        print(lno(),cols)
+        #print(lno(),cols)
         enddate=date+relativedelta(days=7)
         startdate=date-relativedelta(months=3)
         cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <"{}"'.format(stock_id,startdate,enddate)
         #print(lno(),cmd)
-        df=pd.read_sql(cmd, con=self.conn,parse_dates=['date'])  
-        #print(lno(),df.iloc[-1][cols].values.sum())
-        return df.iloc[-1][cols].values.sum()
+        try:
+            df=pd.read_sql(cmd, con=self.conn,parse_dates=['date'])  
+            #print(lno(),df.iloc[-1][cols].values.sum())
+            return df.iloc[-1][cols].values.sum()
+        except:
+            print(lno(),stock_id,'dist no data')
+            return 0
+            pass
     def get_df_bydate(self,stock_id,date):
         pass
     def tdcc_dftolist(self,df):

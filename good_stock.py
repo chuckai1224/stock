@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 #from __future__ import unicode_literals
 import io
 import csv
@@ -502,9 +502,10 @@ class findstock:
     and linearregangle(value4,5)<10
     then count=count+1;
     end;
-    """   
+    """ 
+    ##TODO Q指標 https://xstrader.net/%E7%A8%8B%E5%BC%8F%E4%BA%A4%E6%98%93%E5%9C%A8%E5%9F%BA%E9%87%91%E6%8A%95%E8%B3%87%E4%B8%8A%E7%9A%84%E6%87%89%E7%94%A8%E4%B9%8B%E4%BA%8Cq%E6%8C%87%E6%A8%99/  
     def analy(self,method,startdate,enddate):
-        ##TODO  df.shape[0]==>len(df)
+        ##TODO  len(df.index)==>len(df)
         tStart = time.time()
         table_name=method
         cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
@@ -517,34 +518,64 @@ class findstock:
         def get_price(r):
             date=r.date
             stock_id=r.stock_id
-            enddate= date + relativedelta(days=100)  
+            
             total_stock_nums=self.tdcc.get_total_stock_num(r.stock_id,r.date)
             ##TODO 股本大小 
             # 市值 >=100億 大
             # 高低位,get 3 year 
-            #print(lno(),stock_id,date,stock_nums)
+            print(lno(),stock_id,date)
             #raise
-            df0=self.stk.get_df_by_startdate_enddate(stock_id,date,enddate)
+            
+            df1=self.stk.get_df_by_enddate_num(stock_id,date,120)
+            ma_list = [5,21,89]
+            for ma in ma_list:
+                df1['MA_' + str(ma)] = df1['close'].rolling(window=ma,center=False,axis=0).mean()
+            #print(lno(),df1)
+            if df1.iloc[-1]['MA_89']>df1.iloc[-2]['MA_89']:
+                MA89_stage='up'
+            ma5_angle=np.nan    
+            ma21_angle=np.nan    
+            ma89_angle=np.nan    
+            datanum=len(df1.index)    
+            if datanum>=6:
+                ma5_angle=talib.LINEARREG_ANGLE(df1['MA_5'].values,2)    
+            #print(lno(),tt)
+            if datanum>=22:
+                ma21_angle=talib.LINEARREG_ANGLE(df1['MA_21'].values,2)    
+            #print(lno(),tt1)
+            try:
+                if datanum>=90:
+                    ma89_angle=talib.LINEARREG_ANGLE(df1['MA_89'].values,2)    
+            except:
+                print(lno(),df1)
+                raise    
+            #print(lno(),tt2)
+            #raise
+            edate= date + relativedelta(days=100)  
+            df0=self.stk.get_df_by_startdate_enddate(stock_id,date,edate)
+            
             buy=np.nan
             day5=np.nan
             day20=np.nan
             day60=np.nan
-            if len(df0)>=2:
+            datanum=len(df0.index)
+            if datanum>=2:
                 buy=df0.at[1,'open']
-            if len(df0)>=6:
+            if datanum>=6:
                 day5=cm1.calc_profit(buy,df0.at[5,'close']) 
-            if len(df0)>=21:
+            if datanum>=21:
                 day20=cm1.calc_profit(buy,df0.at[20,'close']) 
-            if len(df0)>=61:
+            if datanum>=61:
                 day60=cm1.calc_profit(buy,df0.at[60,'close']) 
                 #print(lno(),df0)
                 #print(lno(),stock_id,date,enddate)
                 #raise   
-            return day5,day20,day60,int(total_stock_nums*df0.at[0,'close']/100000000) 
-        df1[['day5','day20','day60','市值(億)']]=df1.apply(get_price,axis=1,result_type="expand")
+            return day5,day20,day60,int(total_stock_nums*df0.at[0,'close']/100000000),ma5_angle,ma21_angle,ma89_angle
+        df1[['day5','day20','day60','市值(億)','MA5(角度)','MA21(角度)','MA89(角度)']]=df1.apply(get_price,axis=1,result_type="expand")
+        df1.to_sql(name='verylongred_v1', con=self.con, if_exists='replace', index=False,chunksize=10)
         print(lno(),df1)
-        comm.to_html(df1,'out/buy_signal/{}_{}-{}.html'.format(table_name,startdate.strftime('%Y%m%d'),endtdate.strftime('%Y%m%d')))
-        cnt=len(df1)
+        comm.to_html(df1,'out/buy_signal/{}_{}-{}.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d')))
+        cnt=len(df1.index)
         d5_num=cnt-df1['day5'].isna().sum()
         d20_num=cnt-df1['day20'].isna().sum()
         d60_num=cnt-df1['day60'].isna().sum()
@@ -560,7 +591,7 @@ class findstock:
         cols=['5日勝率','5日獲利','20日勝率','20日獲利','60日勝率','60日獲利']
         dfo=pd.DataFrame([_list],columns=cols).round({'5日勝率': 2,'5日獲利': 5,'20日勝率': 2,'20日獲利': 5,'60日勝率': 2,'60日獲利': 5})
 
-        comm.to_html(dfo,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),endtdate.strftime('%Y%m%d') ))
+        comm.to_html(dfo,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
         print(lno(),dfo)
         #print(d5_num,d5_ok,d5_porfit/d5_num)
         #print(d20_num,d20_ok,d20_porfit/d20_num)

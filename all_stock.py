@@ -1786,8 +1786,7 @@ if __name__ == '__main__':
         d['kline_stable']=np.nan
         d['bs_stable']=np.nan
         t=0
-        bypass=0
-        if bypass==0:
+
         for j in range(0, len(d)):
             i=d.at[j,'stock_id']
 
@@ -1840,10 +1839,6 @@ if __name__ == '__main__':
         flag='otc'
         for j in range(0, len(d)):
             i=d.at[j,'stock_id']
-            #if i=='6438':
-            #    bypass=0
-            if bypass==1:
-                continue  
             if len(i)>=5:
                 continue
             if i=='0000':
@@ -1877,7 +1872,7 @@ if __name__ == '__main__':
         #20190908 test marked
         #generate_stock_kline_html_all(d_bs,'otc','bs_power',enddate,practice)
         if len(d_bs)!=0:
-        generate_stock_html_mode2(enddate,mode='otc_bs_power',in_df=[d_bs])
+            generate_stock_html_mode2(enddate,mode='otc_bs_power',in_df=[d_bs])
         #generate_stock_kline_html_all_mode2(enddate)
        
 #"E:\Program Files\Oracle\VirtualBox\VBoxManage.exe""  internalcommands sethduuid f:\vbox\xxx.vdi        

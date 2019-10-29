@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 #import grs
 import csv
 import os
@@ -953,7 +953,7 @@ class stock_data:
             df = pd.read_sql(cmd, con=self.con, parse_dates=['date'])
             #df=df.sort_values(by=['date'], ascending=True).reset_index(drop=True)
             df=df.fillna(method='ffill')
-            df=df.tail(num)
+            df=df.tail(num).reset_index(drop=True)
             #print(lno(),df.head())
             return df
         except:

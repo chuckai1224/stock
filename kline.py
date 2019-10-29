@@ -384,7 +384,7 @@ def generate_kline_pic(in_df):
    
 def generate_stock_day_kline(stock_no,enddate,outf,title,df_in=pd.DataFrame()):
     if len(df_in)==0:
-    df1=comm.get_stock_df_bydate_nums(stock_no,90,enddate)
+        df1=comm.get_stock_df_bydate_nums(stock_no,90,enddate)
     else:
         df1=df_in    
     
@@ -451,7 +451,7 @@ def generate_stock_week_kline(stock_no,enddate,outf,df_in=pd.DataFrame()):
     今天轉折價=[3天前收盤價*2]減6天前收盤價 
     """
     if len(df_in)==0:
-    df1=comm.get_stock_df_bydate_nums(stock_no,300,enddate)
+        df1=comm.get_stock_df_bydate_nums(stock_no,300,enddate)
     else:
         df1=df_in
     #print(lno(),df1['vol'].dtype)        
@@ -565,7 +565,7 @@ def generate_stock_week_kline(stock_no,enddate,outf,df_in=pd.DataFrame()):
 
 def generate_stock_kline_pic(stock_no,enddate,outf,df_in=pd.DataFrame()):
     if len(df_in)==0:
-    dfs=comm.get_stock_df_bydate_nums(stock_no,220,enddate)
+        dfs=comm.get_stock_df_bydate_nums(stock_no,220,enddate)
     else:
         dfs=df_in    
     #print(lno(),df1.tail())
