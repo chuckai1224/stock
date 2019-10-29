@@ -538,21 +538,21 @@ class findstock:
             ma89_angle=np.nan    
             datanum=len(df1.index)    
             if datanum>=6:
-                ma5_angle=talib.LINEARREG_ANGLE(df1['MA_5'].values,2)    
+                ma5_angle=talib.LINEARREG_ANGLE(df1['MA_5'].values,2)[-1]    
             #print(lno(),tt)
             if datanum>=22:
-                ma21_angle=talib.LINEARREG_ANGLE(df1['MA_21'].values,2)    
+                ma21_angle=talib.LINEARREG_ANGLE(df1['MA_21'].values,2)[-1]    
             #print(lno(),tt1)
             try:
                 if datanum>=90:
-                    ma89_angle=talib.LINEARREG_ANGLE(df1['MA_89'].values,2)    
+                    ma89_angle=talib.LINEARREG_ANGLE(df1['MA_89'].values,2)[-1]   
             except:
                 print(lno(),df1)
                 raise    
             #print(lno(),tt2)
             #raise
             edate= date + relativedelta(days=100)  
-            df0=self.stk.get_df_by_startdate_enddate(stock_id,date,edate)
+            df0=self.stk.get_df_by_startdate_enddate(stock_id,date,edategit )
             
             buy=np.nan
             day5=np.nan
