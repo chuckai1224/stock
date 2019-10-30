@@ -4,6 +4,7 @@ import io
 import csv
 import os
 import time
+import timeit
 import sys
 #import urllib2
 from datetime import datetime
@@ -463,7 +464,7 @@ class findstock:
             if self.strategy in table_names:
                 cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(self.strategy,self.rundate,enddate)
                 df_query= pd.read_sql(cmd, con=self.con)
-                if len(df_query)==0:  
+                if len(df_query.index)==0:  
                     print(lno(),date_str)      
                     df.to_sql(name=self.strategy, con=self.con, if_exists='append', index=False,chunksize=10)
                     #raise
@@ -523,7 +524,7 @@ class findstock:
             ##TODO 股本大小 
             # 市值 >=100億 大
             # 高低位,get 3 year 
-            print(lno(),stock_id,date)
+            #print(lno(),stock_id,date)
             #raise
             
             df1=self.stk.get_df_by_enddate_num(stock_id,date,120)
@@ -531,8 +532,7 @@ class findstock:
             for ma in ma_list:
                 df1['MA_' + str(ma)] = df1['close'].rolling(window=ma,center=False,axis=0).mean()
             #print(lno(),df1)
-            if df1.iloc[-1]['MA_89']>df1.iloc[-2]['MA_89']:
-                MA89_stage='up'
+
             ma5_angle=np.nan    
             ma21_angle=np.nan    
             ma89_angle=np.nan    
@@ -549,16 +549,18 @@ class findstock:
             except:
                 print(lno(),df1)
                 raise    
-            #print(lno(),tt2)
+            #print(lno(),ma5_angle,ma21_angle,ma89_angle)
             #raise
             edate= date + relativedelta(days=100)  
-            df0=self.stk.get_df_by_startdate_enddate(stock_id,date,edategit )
+            df0=self.stk.get_df_by_startdate_enddate(stock_id,date,edate )
             
             buy=np.nan
             day5=np.nan
             day20=np.nan
             day60=np.nan
             datanum=len(df0.index)
+            if datanum==0:
+                return
             if datanum>=2:
                 buy=df0.at[1,'open']
             if datanum>=6:
@@ -569,8 +571,13 @@ class findstock:
                 day60=cm1.calc_profit(buy,df0.at[60,'close']) 
                 #print(lno(),df0)
                 #print(lno(),stock_id,date,enddate)
-                #raise   
-            return day5,day20,day60,int(total_stock_nums*df0.at[0,'close']/100000000),ma5_angle,ma21_angle,ma89_angle
+                #raise  
+            if datanum>=1:
+                value=int(total_stock_nums*df0.at[0,'close']/100000000)
+            else:
+                value=np.nan    
+            #print(lno(),day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle)    
+            return day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle
         df1[['day5','day20','day60','市值(億)','MA5(角度)','MA21(角度)','MA89(角度)']]=df1.apply(get_price,axis=1,result_type="expand")
         df1.to_sql(name='verylongred_v1', con=self.con, if_exists='replace', index=False,chunksize=10)
         print(lno(),df1)
@@ -700,7 +707,45 @@ class findstock:
         pass
 from sqlalchemy import create_engine       
 from sqlalchemy.types import NVARCHAR, Float, Integer 
+def calc_final(name,df1):
+    cnt=len(df1.index)
+    d5_num=cnt-df1['day5'].isna().sum()
+    d20_num=cnt-df1['day20'].isna().sum()
+    d60_num=cnt-df1['day60'].isna().sum()
+    d5_ok=len(df1.loc[df1['day5'] >= 1])
+    d20_ok=len(df1.loc[df1['day20'] >= 1])
+    d60_ok=len(df1.loc[df1['day60'] >= 1])
+    d5_porfit=df1['day5'].sum()
+    d20_porfit=df1['day20'].sum()
+    d60_porfit=df1['day60'].sum()
+    _list=[name,d5_ok/d5_num,d5_porfit/d5_num,d20_ok/d20_num,d20_porfit/d20_num,d60_ok/d60_num,d60_porfit/d60_num]
+    #print(lno(),_list)
+    cols=['名稱','5日勝率','5日獲利','20日勝率','20日獲利','60日勝率','60日獲利']
+    dfo=pd.DataFrame([_list],columns=cols).round({'5日勝率': 2,'5日獲利': 5,'20日勝率': 2,'20日獲利': 5,'60日勝率': 2,'60日獲利': 5})
+    return dfo
+    #return _list
+
+def find_stock_analy(method,startdate,enddate):
+    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    stk=comm.stock_data()
+    con = engine.connect() 
     
+    table_name='verylongred_v1'
+    cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
+    df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
+    df_fin= calc_final('全部',df)
+    
+    df2=calc_final('大市值 MA89往上',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
+    df_fin=df_fin.append(df2)
+    df2=calc_final('大市值 MA89往下',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
+    df_fin=df_fin.append(df2)
+    df2=calc_final('小市值 MA89往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
+    df_fin=df_fin.append(df2)
+    df2=calc_final('小市值 MA89往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
+    df_fin=df_fin.append(df2)
+    ##TODO  find 市值大小 MA89 trend
+    print(lno(),df_fin)
+    comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
 """
 我永遠都在尋找四種股票
 1.市值接近歷史低檔區的景氣循環股
@@ -775,6 +820,23 @@ if __name__ == '__main__':
                 print(lno(),nowdate)
                 find_stock.run(nowdate,method)
                 day=day+1
+    elif sys.argv[1]=='find' :
+        if len(sys.argv)==4 :
+            ## TODO find_stock test1 generate
+            method='test1'
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+            #method='LongRed_Breakthrough_10day'
+            #method='LongRed_Breakthrough_20day'
+            #method='VeryLongRed_10day'
+            find_stock=findstock()
+            day=0
+            nowdate=enddate
+            while   nowdate>=startdate :
+                nowdate = enddate - relativedelta(days=day)
+                print(lno(),nowdate)
+                find_stock.run(nowdate,method)
+                day=day+1            
     elif sys.argv[1]=='longred' :
         if len(sys.argv)==4 :
             ## TODO find_stock long red generate
@@ -798,7 +860,15 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
             method='VeryLongRed_10day'
-            find_stock.analy(method,startdate,enddate)     
+            find_stock.analy(method,startdate,enddate) 
+    elif sys.argv[1]=='t4' :
+        if len(sys.argv)==4 :
+            ## TODO find_stock analy
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+            find_stock=findstock()
+            method='VeryLongRed_10day'
+            find_stock_analy(method,startdate,enddate)            
     elif sys.argv[1]=='allsql' :  
         pass      
     else:   

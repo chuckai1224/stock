@@ -766,6 +766,11 @@ class exchange_data:
                 return d
             df['date']=df['date'].apply(strdate)
             """
+            df=df.replace('--',np.nan)
+            df=df.replace('---',np.nan)
+            df=df.replace('----',np.nan)
+            df=df.replace('除息','0')
+            df=df.replace('除權','0')
             table_name='%d%02d%02d'%(selday.year,selday.month,selday.day)
             df.to_sql(name=table_name, con=self.con, if_exists='replace', index=False,dtype=self.dtypedict,chunksize=10)
             #df.tosql
@@ -790,9 +795,9 @@ def exchange2sql(startdate,enddate):
     while   now_date<=enddate :
         exc=exchange_data('tse')
         exc.save_sql(now_date)
-        df=exc.get_df(now_date)
-        exc.close()
-        #print(lno(),df.head())
+        #df=exc.get_df(now_date)
+        #exc.close()
+        print(lno(),now_date)
         now_date = now_date + relativedelta(days=1)
     #"""    
     now_date = startdate 
@@ -800,8 +805,9 @@ def exchange2sql(startdate,enddate):
 
         exc=exchange_data('otc')
         exc.save_sql(now_date)
-        df=exc.get_df(now_date)
+        #df=exc.get_df(now_date)
         #print(lno(),df.head())
+        print(lno(),now_date)
         now_date = now_date + relativedelta(days=1)
     #"""
 def get_tse_exchange_data_sql(date,exc=None):
@@ -896,7 +902,7 @@ class stock_data:
             if repeat==0:
                 #print(lno(),df_sql)
                 df=df.drop(['stock_id'], axis=1)
-                print(lno(),df.head())
+                #print(lno(),df.head())
                 #df['date']=df['date'].apply(time64_Date_str)
                 #df.to_sql(name=self.stock_id, con=self.con, if_exists='append', index=False,dtype=self.dtypedict,method='upsert_ignore')        
                 df.to_sql(name=stock_id, con=self.con, if_exists='append', index=False,dtype=self.dtypedict)        
