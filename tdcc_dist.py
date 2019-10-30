@@ -1310,7 +1310,21 @@ def parse_dist_html(stock_no) :
                     output = csv.writer(csv_file)
                     for i in res_list:
                         output.writerow(i)        
-    
+def old_dist_tosql():
+    #df_fin = pd.DataFrame(columns=self.columns, dtype=np.int64)
+      
+    FOLDER='data/dist'
+    if not os.path.isdir(FOLDER):
+        return
+    file_names = os.listdir(FOLDER)
+    for file_name in file_names:
+        if not file_name.endswith('.csv'):
+            continue
+        print(file_name,len(file_name))
+        #df=pd.read_csv('{}/{}'.format(FOLDER, file_name),encoding = 'utf-8',dtype=dtypes)
+        dfi=pd.read_csv('{}/{}'.format(FOLDER, file_name),encoding = 'utf-8',header=None,usecols=[0,1,2,3,4,5,6,7,8,9,10,11,12])   
+        print(lno(),dfi) 
+        raise
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     if len(sys.argv)==1:
@@ -1410,6 +1424,8 @@ if __name__ == '__main__':
     elif sys.argv[1]=="sql_t0" :
         dataday=datetime.strptime(sys.argv[2],'%Y%m%d')
         tdcc_sql_t0(dataday)
+    elif sys.argv[1]=="old" :
+        old_dist_tosql()    
     else:
         print (lno(),"unsport ")
         sys.exit()

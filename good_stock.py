@@ -707,7 +707,7 @@ class findstock:
         pass
 from sqlalchemy import create_engine       
 from sqlalchemy.types import NVARCHAR, Float, Integer 
-def calc_final(name,df1):
+def gen_final_df(df_fin,name,df1):
     cnt=len(df1.index)
     d5_num=cnt-df1['day5'].isna().sum()
     d20_num=cnt-df1['day20'].isna().sum()
@@ -722,7 +722,8 @@ def calc_final(name,df1):
     #print(lno(),_list)
     cols=['名稱','5日勝率','5日獲利','20日勝率','20日獲利','60日勝率','60日獲利']
     dfo=pd.DataFrame([_list],columns=cols).round({'5日勝率': 2,'5日獲利': 5,'20日勝率': 2,'20日獲利': 5,'60日勝率': 2,'60日獲利': 5})
-    return dfo
+    df_fin=pd.concat([df_fin, dfo])
+    return df_fin
     #return _list
 
 def find_stock_analy(method,startdate,enddate):
@@ -733,16 +734,14 @@ def find_stock_analy(method,startdate,enddate):
     table_name='verylongred_v1'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
-    df_fin= calc_final('全部',df)
+    df_fin=pd.DataFrame()
+    df_fin=gen_final_df(df_fin,'全部',df)
     
-    df2=calc_final('大市值 MA89往上',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
-    df_fin=df_fin.append(df2)
-    df2=calc_final('大市值 MA89往下',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
-    df_fin=df_fin.append(df2)
-    df2=calc_final('小市值 MA89往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
-    df_fin=df_fin.append(df2)
-    df2=calc_final('小市值 MA89往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
-    df_fin=df_fin.append(df2)
+    df_fin=gen_final_df(df_fin,'大市值 MA89往上',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
+    df_fin=gen_final_df(df_fin,'大市值 MA89往下',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
+    df_fin=gen_final_df(df_fin,'小市值 MA89往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
+    df_fin=gen_final_df(df_fin,'小市值 MA89往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
+   
     ##TODO  find 市值大小 MA89 trend
     print(lno(),df_fin)
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
@@ -855,7 +854,7 @@ if __name__ == '__main__':
                 day=day+1            
     elif sys.argv[1]=='t2' :
         if len(sys.argv)==4 :
-            ## TODO find_stock analy
+            ## TODO find_stock analy get 市值 斜率
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
@@ -863,7 +862,7 @@ if __name__ == '__main__':
             find_stock.analy(method,startdate,enddate) 
     elif sys.argv[1]=='t4' :
         if len(sys.argv)==4 :
-            ## TODO find_stock analy
+            ## TODO find_stock analy fin
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
