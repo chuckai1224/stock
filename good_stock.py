@@ -21,6 +21,7 @@ import pandas as pd
 import numpy as np
 import op
 import math
+import kline
 from sqlalchemy import create_engine
 #from pyecharts import Kline
 #from pyecharts import Candlestick
@@ -758,6 +759,37 @@ def find_stock_analy(method,startdate,enddate):
     ##TODO  find 市值大小 MA89 trend
     print(lno(),df_fin)
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
+def find_stock_get_box(method,startdate,enddate):
+    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    stk=comm.stock_data()
+    con = engine.connect() 
+    ##TODO get 盤整箱
+    table_name='verylongred_v1'
+    cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
+    df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
+    def get_correction_box(r):
+            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,120)
+            ma_list = [5,10,20]
+            tmp=[]
+            for ma in ma_list:
+                df1['MA_' + str(ma)] = talib.MA(df1.close,ma)
+                tmp.append(talib.LINEARREG_ANGLE(df1['MA_'+ str(ma)].values,ma)[-1])
+            print(lno(),df1.tail(5))
+            print(lno(),r.stock_id,r.date,tmp)
+            if abs(tmp[0])<=1 :
+                df2=stk.get_df_by_enddate_num(r.stock_id,r.date+relativedelta(days=1),120)
+                kline.show_stock_kline_pic(r.stock_id,df2)
+                raise
+            
+    df.apply(get_correction_box,axis=1)        
+
+    
+
+
+   
+    print(lno(),df_fin)
+    comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
+
 """
 我永遠都在尋找四種股票
 1.市值接近歷史低檔區的景氣循環股
