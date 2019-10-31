@@ -1014,8 +1014,9 @@ class tdcc_dist():
         #self.columns_index=['<1','1-5','5-10','10-15','15-20','20-30','30-40','40-50','50-100','100-200','200-400','400-600','600-800','800-1000','>1000']
         self.columns_old=['<1.人數', '<1.股數', '<1.比例(%)', '1-5.人數', '1-5.股數', '1-5.比例(%)', '5-10.人數', '5-10.股數', '5-10.比例(%)', '10-15.人數', '10-15.股數', '10-15.比例(%)', '15-20.人數', '15-20.股數', '15-20.比例(%)', '20-30.人數', '20-30.股數', '20-30.比例(%)', '30-40.人數', '30-40.股數', '30-40.比例(%)', '40-50.人數', '40-50.股數', '40-50.比例(%)', '50-100.人數', '50-100.股數', '50-100.比例(%)', '100-200.人數', '100-200.股數', '100-200.比例(%)', '200-400.人數', '200-400.股數', '200-400.比例(%)', '400-600.人數', '400-600.股數', '400-600.比例(%)', '600-800.人數', '600-800.股數', '600-800.比例(%)', '800-1000.人數', '800-1000.股數', '800-1000.比例(%)', '>1000.人數', '>1000.股數', '>1000.比例(%)']
         self.engine = create_engine('sqlite:///sql/tdcc_dist.db', echo=False)
-        #self.engine = create_engine('sqlite:///sql/tdcc_dist.db', echo=True)
+        self.engine_old = create_engine('sqlite:///sql/tdcc_dist_old.db', echo=False)
         self.conn=self.engine.connect()
+        self.conn_old=self.engine_old.connect()
         self.columns=range(0,15*3)
         self.dtypedict = {
             'date': DateTime()
@@ -1026,21 +1027,32 @@ class tdcc_dist():
         pass
     def get_total_stock_num(self,stock_id,date):
         ##TODO get total stock sql
-        
-        cols=['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29']
-        #print(lno(),cols)
         enddate=date+relativedelta(days=7)
         startdate=date-relativedelta(months=3)
-        cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <"{}"'.format(stock_id,startdate,enddate)
-        #print(lno(),cmd)
-        try:
-            df=pd.read_sql(cmd, con=self.conn,parse_dates=['date'])  
-            #print(lno(),df.iloc[-1][cols].values.sum())
-            return df.iloc[-1][cols].values.sum()
-        except:
-            print(lno(),stock_id,'dist no data')
-            return 0
-            pass
+        old_date=datetime(2018,5,4)
+        if date<=old_date:
+            cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <"{}"'.format(stock_id,startdate,enddate)
+            #print(lno(),cmd)
+            try:
+                df=pd.read_sql(cmd, con=self.conn_old,parse_dates=['date'])  
+                #print(lno(),df.iloc[0]['total_stock_num']
+                return float(df.iloc[0]['total_stock_num']*1000)
+            except:
+                print(lno(),stock_id,'dist no data')
+                return 0
+        else:    
+            cols=['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29']
+            #print(lno(),cols)
+            cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <"{}"'.format(stock_id,startdate,enddate)
+            #print(lno(),cmd)
+            try:
+                df=pd.read_sql(cmd, con=self.conn,parse_dates=['date'])  
+                #print(lno(),df.iloc[-1][cols].values.sum())
+                return df.iloc[-1][cols].values.sum()
+            except:
+                print(lno(),stock_id,'dist no data')
+                return 0
+
     def get_df_bydate(self,stock_id,date):
         pass
     def tdcc_dftolist(self,df):
@@ -1155,18 +1167,21 @@ def tdcc_sql(date):
 def tdcc_sql_t0(date):
     tdcc=tdcc_dist()
     df=tdcc.get_df('6192')
-    tdcc.get_total_stock_num('6192',date)
     #print(lno(),df)
+    stocks=tdcc.get_total_stock_num('6192',date)
+    print(lno(),stocks)
 ##TODO 股本
 def requests_get_dist( stock_no):
     path='data/dist'
     if not os.path.isdir(path):
         os.mkdir(path)
     filen='data/dist/dist_{}.html'.format(stock_no)    
-    cmd='curl.exe http://norway.twsthr.info/StockHolders.aspx?stock={0} -o data/dist/dist_{1}.html '.format(stock_no,stock_no)
-    if not os.path.isfile(filen):
-        print (lno(),cmd)
-        os.system(cmd)
+    #cmd='curl.exe http://norway.twsthr.info/StockHolders.aspx?stock={0} -o data/dist/dist_{1}.html '.format(stock_no,stock_no)
+    cmd='curl https://norway.twsthr.info/StockHolders.aspx?stock={0} -o data/dist/dist_{1}.html '.format(stock_no,stock_no)
+    #https://norway.twsthr.info/StockHolders.aspx?stock=6131
+    #if not os.path.isfile(filen):
+    print (lno(),cmd)
+    os.system(cmd)
 def parse_dist_html(stock_no) :
     filen='data/dist/dist_{}.html'.format(stock_no)
     with open(filen, "r",encoding="utf-8") as f:
@@ -1309,22 +1324,57 @@ def parse_dist_html(stock_no) :
                 with open(filen, 'w',encoding='utf8',newline='') as csv_file:
                     output = csv.writer(csv_file)
                     for i in res_list:
-                        output.writerow(i)        
+                        output.writerow(i)   
+def stock_old_dist_tosql(stock_id):
+    #df_fin = pd.DataFrame(columns=self.columns, dtype=np.int64)
+      
+    FOLDER='data/dist'
+    if not os.path.isdir(FOLDER):
+        return
+    engine = create_engine('sqlite:///sql/tdcc_dist_old.db', echo=False)
+    conn=engine.connect()    
+    file_name = '%s/dist_%s.csv'%(FOLDER,stock_id)
+    dfi=pd.read_csv(file_name,encoding = 'utf-8',header=None,usecols=[0,1,2,3,4,5,6,7,8,9,10,11],dtype={0:str}) 
+    columns=['date','total_stock_num','總股東人數','平均張數','>400股數','>400比例','>400人數','400-600人數','600-800人數','800-1000人數','>1000人數','>1000比例']
+    dfi.columns=columns  
+    def str2date(x):
+        return datetime.strptime(x,'%Y%m%d')
+    dfi['date']=dfi['date'].apply(str2date) 
+    dfi=dfi.sort_values(by=['date'], ascending=False)
+    #print(lno(),dfi) 
+    #print(lno(),stock_id) 
+    dfi.to_sql(stock_id, engine, if_exists='replace', index=False,chunksize=10)                             
 def old_dist_tosql():
     #df_fin = pd.DataFrame(columns=self.columns, dtype=np.int64)
       
     FOLDER='data/dist'
     if not os.path.isdir(FOLDER):
         return
+    engine = create_engine('sqlite:///sql/tdcc_dist_old.db', echo=False)
+    conn=engine.connect()    
     file_names = os.listdir(FOLDER)
     for file_name in file_names:
         if not file_name.endswith('.csv'):
             continue
+        if not 'dist_' in file_name:
+            continue
         print(file_name,len(file_name))
+        
+        stock_id=file_name.replace('.csv','').replace('dist_','')
         #df=pd.read_csv('{}/{}'.format(FOLDER, file_name),encoding = 'utf-8',dtype=dtypes)
-        dfi=pd.read_csv('{}/{}'.format(FOLDER, file_name),encoding = 'utf-8',header=None,usecols=[0,1,2,3,4,5,6,7,8,9,10,11,12])   
-        print(lno(),dfi) 
-        raise
+        dfi=pd.read_csv('{}/{}'.format(FOLDER, file_name),encoding = 'utf-8',header=None,usecols=[0,1,2,3,4,5,6,7,8,9,10,11],dtype={0:str}) 
+        columns=['date','total_stock_num','總股東人數','平均張數','>400股數','>400比例','>400人數','400-600人數','600-800人數','800-1000人數','>1000人數','>1000比例']
+        dfi.columns=columns  
+        def str2date(x):
+            return datetime.strptime(x,'%Y%m%d')
+        dfi['date']=dfi['date'].apply(str2date) 
+
+        dfi=dfi.sort_values(by=['date'], ascending=False)
+        #print(lno(),dfi) 
+        #print(lno(),stock_id) 
+        dfi.to_sql(stock_id, engine, if_exists='replace', index=False,chunksize=10)
+        #raise
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     if len(sys.argv)==1:
@@ -1425,7 +1475,11 @@ if __name__ == '__main__':
         dataday=datetime.strptime(sys.argv[2],'%Y%m%d')
         tdcc_sql_t0(dataday)
     elif sys.argv[1]=="old" :
-        old_dist_tosql()    
+        stock_id=sys.argv[2]
+        requests_get_dist(stock_id)
+        parse_dist_html(stock_id)
+        stock_old_dist_tosql(stock_id)
+        #old_dist_tosql()    
     else:
         print (lno(),"unsport ")
         sys.exit()

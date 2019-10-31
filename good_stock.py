@@ -20,6 +20,7 @@ from inspect import currentframe, getframeinfo
 import pandas as pd
 import numpy as np
 import op
+import math
 from sqlalchemy import create_engine
 #from pyecharts import Kline
 #from pyecharts import Candlestick
@@ -519,7 +520,8 @@ class findstock:
         def get_price(r):
             date=r.date
             stock_id=r.stock_id
-            
+            #if r.stock_id!='6130':
+            #    return
             total_stock_nums=self.tdcc.get_total_stock_num(r.stock_id,r.date)
             ##TODO 股本大小 
             # 市值 >=100億 大
@@ -537,23 +539,22 @@ class findstock:
             ma21_angle=np.nan    
             ma89_angle=np.nan    
             datanum=len(df1.index)    
-            if datanum>=6:
-                ma5_angle=talib.LINEARREG_ANGLE(df1['MA_5'].values,2)[-1]    
-            #print(lno(),tt)
-            if datanum>=22:
-                ma21_angle=talib.LINEARREG_ANGLE(df1['MA_21'].values,2)[-1]    
-            #print(lno(),tt1)
             try:
+                if datanum>=6:
+                    ma5_angle=talib.LINEARREG_ANGLE(df1['MA_5'].values,2)[-1]    
+                if datanum>=22:
+                    ma21_angle=talib.LINEARREG_ANGLE(df1['MA_21'].values,2)[-1]    
                 if datanum>=90:
                     ma89_angle=talib.LINEARREG_ANGLE(df1['MA_89'].values,2)[-1]   
             except:
-                print(lno(),df1)
-                raise    
+                print(lno(),stock_id)
+                print(lno(),df1.close)
+
             #print(lno(),ma5_angle,ma21_angle,ma89_angle)
             #raise
             edate= date + relativedelta(days=100)  
             df0=self.stk.get_df_by_startdate_enddate(stock_id,date,edate )
-            
+            #print(lno(),df0.close)
             buy=np.nan
             day5=np.nan
             day20=np.nan
@@ -563,12 +564,18 @@ class findstock:
                 return
             if datanum>=2:
                 buy=df0.at[1,'open']
-            if datanum>=6:
-                day5=cm1.calc_profit(buy,df0.at[5,'close']) 
-            if datanum>=21:
-                day20=cm1.calc_profit(buy,df0.at[20,'close']) 
-            if datanum>=61:
-                day60=cm1.calc_profit(buy,df0.at[60,'close']) 
+            if datanum>=6 and buy!=0:
+                sell=df0.at[5,'close']
+                if sell!=0:
+                    day5=cm1.calc_profit(buy,sell) 
+            if datanum>=21 and buy!=0:
+                sell=df0.at[20,'close']
+                if sell!=0:
+                    day20=cm1.calc_profit(buy,sell) 
+            if datanum>=61 and buy!=0 :
+                sell=df0.at[60,'close']
+                if sell!=0:
+                    day60=cm1.calc_profit(buy,sell) 
                 #print(lno(),df0)
                 #print(lno(),stock_id,date,enddate)
                 #raise  
@@ -718,9 +725,9 @@ def gen_final_df(df_fin,name,df1):
     d5_porfit=df1['day5'].sum()
     d20_porfit=df1['day20'].sum()
     d60_porfit=df1['day60'].sum()
-    _list=[name,d5_ok/d5_num,d5_porfit/d5_num,d20_ok/d20_num,d20_porfit/d20_num,d60_ok/d60_num,d60_porfit/d60_num]
-    #print(lno(),_list)
-    cols=['名稱','5日勝率','5日獲利','20日勝率','20日獲利','60日勝率','60日獲利']
+    _list=[name,d5_num,d5_ok/d5_num,d5_porfit/d5_num,d20_num,d20_ok/d20_num,d20_porfit/d20_num,d60_num,d60_ok/d60_num,d60_porfit/d60_num]
+    print(lno(),d5_num,d20_num,d60_num)
+    cols=['名稱','5日總數','5日勝率','5日獲利','20日總數','20日勝率','20日獲利','60日總數','60日勝率','60日獲利']
     dfo=pd.DataFrame([_list],columns=cols).round({'5日勝率': 2,'5日獲利': 5,'20日勝率': 2,'20日獲利': 5,'60日勝率': 2,'60日獲利': 5})
     df_fin=pd.concat([df_fin, dfo])
     return df_fin
@@ -741,6 +748,12 @@ def find_stock_analy(method,startdate,enddate):
     df_fin=gen_final_df(df_fin,'大市值 MA89往下',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
+    df_fin=gen_final_df(df_fin,'小市值 MA89往上21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
+    df_fin=gen_final_df(df_fin,'小市值 MA89往上21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
+    df_fin=gen_final_df(df_fin,'小市值 MA89往下21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
+    df_fin=gen_final_df(df_fin,'小市值 MA89往下21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
+
+
    
     ##TODO  find 市值大小 MA89 trend
     print(lno(),df_fin)
@@ -822,12 +835,12 @@ if __name__ == '__main__':
     elif sys.argv[1]=='find' :
         if len(sys.argv)==4 :
             ## TODO find_stock test1 generate
-            method='test1'
+            #method='test1'
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             #method='LongRed_Breakthrough_10day'
             #method='LongRed_Breakthrough_20day'
-            #method='VeryLongRed_10day'
+            method='VeryLongRed_10day'
             find_stock=findstock()
             day=0
             nowdate=enddate
@@ -852,17 +865,25 @@ if __name__ == '__main__':
                 print(lno(),nowdate)
                 find_stock.run(nowdate,method)
                 day=day+1            
-    elif sys.argv[1]=='t2' :
+    elif sys.argv[1]=='g2' :
         if len(sys.argv)==4 :
-            ## TODO find_stock analy get 市值 斜率
+            ## TODO 長紅K 抓取斜率 市值
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
             method='VeryLongRed_10day'
             find_stock.analy(method,startdate,enddate) 
-    elif sys.argv[1]=='t4' :
+    elif sys.argv[1]=='g3' :
         if len(sys.argv)==4 :
-            ## TODO find_stock analy fin
+            ## TODO 長紅K 抓取盤整區
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+            find_stock=findstock()
+            method='VeryLongRed_10day'
+            find_stock_get_box(method,startdate,enddate)         
+    elif sys.argv[1]=='t2' :
+        if len(sys.argv)==4 :
+            ## TODO 分析 大小市值 斜率
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
