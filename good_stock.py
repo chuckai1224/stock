@@ -529,8 +529,8 @@ class findstock:
             # 高低位,get 3 year 
             #print(lno(),stock_id,date)
             #raise
-            
-            df1=self.stk.get_df_by_enddate_num(stock_id,date,120)
+            ## 突破當日資料不要
+            df1=self.stk.get_df_by_enddate_num(stock_id,date-relativedelta(days=1),120)
             ma_list = [5,21,89]
             for ma in ma_list:
                 df1['MA_' + str(ma)] = df1['close'].rolling(window=ma,center=False,axis=0).mean()
@@ -713,6 +713,56 @@ class findstock:
         tEnd = time.time()
         print ("It cost %.3f sec" % (tEnd - tStart))  
         pass
+    def run_fun(self,rundate,fun,table_name):
+        self.rundate=rundate
+        markets=['tse','otc']
+        tStart = time.time()
+        out=[]
+        for market in markets:
+            if market=='tse':
+                d=self.tse.get_df(self.rundate)
+            else:
+                d=self.otc.get_df(self.rundate)
+                #print(lno(),out)
+            def get_price_df(r):
+                if comm.check_stock_id(r.stock_id)==False:
+                    return
+                print(lno(),r.stock_id,r.date)
+                df=self.stk.get_df_by_enddate_num(r.stock_id,self.rundate,120)
+                res=fun(df)
+                if res>=1:
+                    out.append([self.rundate,market,r.stock_id,'%s'%(table_name),res])  
+            d.apply(get_price_df,axis=1)    
+        print(lno(),out)    
+        raise    
+        #columns=['date','market','stock_id','買進信號','相似度']
+        columns=self.columns
+        df=pd.DataFrame(self.out, columns=columns)
+        if len(df):
+            engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+            con = engine.connect()
+            enddate= self.rundate + relativedelta(days=1)    
+            #print(lno(),date_str,df['stock_id'].values.tolist())
+            date_str=self.rundate.strftime('%Y%m%d')
+            table_names = self.engine.table_names() 
+            if self.strategy in table_names:
+                cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(self.strategy,self.rundate,enddate)
+                df_query= pd.read_sql(cmd, con=self.con)
+                if len(df_query.index)==0:  
+                    print(lno(),date_str)      
+                    df.to_sql(name=self.strategy, con=self.con, if_exists='append', index=False,chunksize=10)
+                    #raise
+                else :
+                    #print(lno(),df_query)   
+                    pass 
+            else:
+                df.to_sql(name=self.strategy, con=con, if_exists='append', index=False,chunksize=10)    
+            #print(lno(),date_str)  
+            #df1 = pd.read_sql('select * from "{}"'.format(date_str), con=con)  
+            #print(lno(),df1)  
+        tEnd = time.time()
+        print ("It cost %.3f sec" % (tEnd - tStart))   
+    
 from sqlalchemy import create_engine       
 from sqlalchemy.types import NVARCHAR, Float, Integer 
 def gen_final_df(df_fin,name,df1):
@@ -767,29 +817,49 @@ def find_stock_get_box(method,startdate,enddate):
     table_name='verylongred_v1'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
+    #print(lno(),df.duplicated())
+    #print(lno(),df)
+    #raise
     def get_correction_box(r):
-            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,120)
-            ma_list = [5,10,20]
-            tmp=[]
-            for ma in ma_list:
-                df1['MA_' + str(ma)] = talib.MA(df1.close,ma)
-                tmp.append(talib.LINEARREG_ANGLE(df1['MA_'+ str(ma)].values,ma)[-1])
-            print(lno(),df1.tail(5))
-            print(lno(),r.stock_id,r.date,tmp)
-            if abs(tmp[0])<=1 :
-                df2=stk.get_df_by_enddate_num(r.stock_id,r.date+relativedelta(days=1),120)
-                kline.show_stock_kline_pic(r.stock_id,df2)
-                raise
+        ##突破當日資料不要
+        df1=stk.get_df_by_enddate_num(r.stock_id,r.date-relativedelta(days=1),120)
+        ma_list = [5,10,20]
+        tmp=[]
+        for ma in ma_list:
+            df1['MA_' + str(ma)] = talib.MA(df1.close,ma)
+            tmp.append(talib.LINEARREG_ANGLE(df1['MA_'+ str(ma)].values,ma)[-1])
+        #print(lno(),df1.tail(5))
+        
+        if abs(tmp[0])<=1 :
+            print(lno(),r.stock_id,r.date,tmp)    
+            #kline.show_stock_kline_pic(r.stock_id,r.date,120)
+            #raise
             
     df.apply(get_correction_box,axis=1)        
-
-    
-
-
-   
     print(lno(),df_fin)
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
-
+def find_ma1_cross_ma5(df):
+    if len(df.index)==0:
+        return np.nan
+    print(lno(),df)
+    ma_list = [5,10,20]
+    #tmp=[]
+    for ma in ma_list:
+        df['MA_' + str(ma)] = talib.MA(df.close,ma)
+        #tmp.append(talib.LINEARREG_ANGLE(df1['MA_'+ str(ma)].values,ma)[-1])
+    print(lno(),df.tail(5))    
+    return 1
+    pass
+def findstock_test(startdate,enddate):
+    fs=findstock()
+    nowdate=enddate
+    day=0
+    while   nowdate>=startdate :
+        nowdate = enddate - relativedelta(days=day)
+        print(lno(),nowdate)
+        fs.run_fun(nowdate,find_ma1_cross_ma5,'test1')
+        day=day+1 
+    
 """
 我永遠都在尋找四種股票
 1.市值接近歷史低檔區的景氣循環股
@@ -856,14 +926,7 @@ if __name__ == '__main__':
             #method='LongRed_Breakthrough_20day'
             #method='VeryLongRed_10day'
             method='test1'
-            find_stock=findstock()
-            day=0
-            nowdate=enddate
-            while   nowdate>=startdate :
-                nowdate = enddate - relativedelta(days=day)
-                print(lno(),nowdate)
-                find_stock.run(nowdate,method)
-                day=day+1
+            findstock_test(startdate,enddate)
     elif sys.argv[1]=='find' :
         if len(sys.argv)==4 :
             ## TODO find_stock test1 generate

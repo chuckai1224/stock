@@ -954,7 +954,7 @@ class stock_data:
             #df = pd.read_sql('select * from "{}" where date < "{}" and date >= "{}"'.format(stock_id,date,date1), con=self.con,index_col='date', parse_dates=['date'])
             
             stardate=date- relativedelta(days=num*2) 
-            cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}" '.format(stock_id,stardate,date)
+            cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}" '.format(stock_id,stardate,date+relativedelta(days=1))
             #cmd='SELECT * FROM "{}" WHERE date <= "{}" ORDER BY "date" DESC limit {} '.format(stock_id,date,num)
             df = pd.read_sql(cmd, con=self.con, parse_dates=['date'])
             #df=df.sort_values(by=['date'], ascending=True).reset_index(drop=True)

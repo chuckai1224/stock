@@ -655,8 +655,8 @@ def generate_stock_kline_pic(stock_no,enddate,outf,df_in=pd.DataFrame()):
     plt.clf()
     plt.close(fig)
 
-def show_stock_kline_pic(stock_no,df_in):
-   
+def show_stock_kline_pic(stock_no,enddate,cnt):
+    dfs=comm.get_stock_df_bydate_nums(stock_no,cnt,enddate)
     dfs=df_in    
     #print(lno(),df1.tail())
     dfs['str_date']=[comm.str_Ymd2md(x) for x in dfs['date'] ]
