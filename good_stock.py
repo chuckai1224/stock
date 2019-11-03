@@ -35,6 +35,7 @@ import talib
 from talib import abstract
 import scipy.signal as signal 
 from stocktool import comm as cm1 
+import swifter
 def lno():
     cf = currentframe()
     filename = getframeinfo(cf).filename
@@ -829,6 +830,8 @@ def find_stock_ma_tangled(method,startdate,enddate):
         def calc_sizeway(r):
             max_value=max(r.MA_5,r.MA_10,r.MA_20)
             min_value=min(r.MA_5,r.MA_10,r.MA_20)
+            if min_value==0:
+                return np.nan
             return (max_value-min_value)/min_value*100
         #df1['sizeway']=df1.apply(calc_sizeway,axis=1)
         sideway=df1.apply(calc_sizeway,axis=1)
@@ -847,8 +850,8 @@ def find_stock_ma_tangled(method,startdate,enddate):
             #kline.show_stock_kline_pic(r.stock_id,r.date,120)
             pass
         return cnt
-    df['ma_tangled_day']=df.apply(get_correction_box,axis=1)
-    df.to_sql(name=table_name, con=self.con, if_exists='replace', index=False,chunksize=10)        
+    df['ma_tangled_day']=df.swifter.apply(get_correction_box,axis=1)
+    df.to_sql(name='verylongred_v2', con=self.con, if_exists='replace', index=False,chunksize=10)        
     df_fin=pd.DataFrame()
     df_fin=gen_final_df(df_fin,'全部',df)
     df_fin=gen_final_df(df_fin,'大市值 均線糾纏日期>=5',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"ma_tangled_day"] >=5 ) ] )
