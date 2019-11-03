@@ -33,6 +33,7 @@ from selenium.webdriver.support.ui import Select
 import shutil
 import talib
 from talib import abstract
+import scipy.signal as signal 
 from stocktool import comm as cm1 
 def lno():
     cf = currentframe()
@@ -524,7 +525,6 @@ class findstock:
             #if r.stock_id!='6130':
             #    return
             total_stock_nums=self.tdcc.get_total_stock_num(r.stock_id,r.date)
-            ##TODO 股本大小 
             # 市值 >=100億 大
             # 高低位,get 3 year 
             #print(lno(),stock_id,date)
@@ -687,9 +687,9 @@ class findstock:
                 #print(lno(),df_box)
                 print(lno(),i,nowdate,box_high,box_low)
                 #print(lno(),df_now.tail())
-                ## TODO  k線型態 辨識
+                ## TODO  k線型態 辨識 突起物 
                 # 自動偵測高低點
-                threshold = 750 # 設定突起度門檻
+                #threshold = 750 # 設定突起度門檻
                 #peaks = signal.find_peaks(stock['price'], prominence=threshold)[0] # 找相對高點
                 #valleys = signal.find_peaks(-stock['price'], prominence=threshold)[0]
                 #df1=comm.get_stock_df_bydate_nums(i,240,self.rundate)
@@ -794,7 +794,6 @@ def find_stock_analy(method,startdate,enddate):
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     df_fin=pd.DataFrame()
     df_fin=gen_final_df(df_fin,'全部',df)
-    
     df_fin=gen_final_df(df_fin,'大市值 MA89往上',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
     df_fin=gen_final_df(df_fin,'大市值 MA89往下',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
@@ -803,13 +802,10 @@ def find_stock_analy(method,startdate,enddate):
     df_fin=gen_final_df(df_fin,'小市值 MA89往上21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
-
-
    
-    ##TODO  find 市值大小 MA89 trend
     print(lno(),df_fin)
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
-def find_stock_get_box(method,startdate,enddate):
+def find_stock_ma_tangled(method,startdate,enddate):
     engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
     stk=comm.stock_data()
     con = engine.connect() 
@@ -823,21 +819,44 @@ def find_stock_get_box(method,startdate,enddate):
     def get_correction_box(r):
         ##突破當日資料不要
         df1=stk.get_df_by_enddate_num(r.stock_id,r.date-relativedelta(days=1),120)
+        
         ma_list = [5,10,20]
         tmp=[]
         for ma in ma_list:
             df1['MA_' + str(ma)] = talib.MA(df1.close,ma)
-            tmp.append(talib.LINEARREG_ANGLE(df1['MA_'+ str(ma)].values,ma)[-1])
+            #tmp.append(talib.LINEARREG_ANGLE(df1['MA_'+ str(ma)].values,ma)[-1])
         #print(lno(),df1.tail(5))
-        
-        if abs(tmp[0])<=1 :
-            print(lno(),r.stock_id,r.date,tmp)    
+        def calc_sizeway(r):
+            max_value=max(r.MA_5,r.MA_10,r.MA_20)
+            min_value=min(r.MA_5,r.MA_10,r.MA_20)
+            return (max_value-min_value)/min_value*100
+        #df1['sizeway']=df1.apply(calc_sizeway,axis=1)
+        sideway=df1.apply(calc_sizeway,axis=1)
+        #tmp.append(talib.LINEARREG_ANGLE(df1['value4'].values,5)[-1])
+        rev_sideway=sideway[::-1]
+        #print(lno(),rev_sideway)
+        cnt=0
+        for i in rev_sideway:
+            if i<=0.5:
+                cnt=cnt+1
+                continue
+            break
+        #sys.exit()
+        if abs(cnt)>=5 :
+            #print(lno(),r.stock_id,r.date,tmp)    
             #kline.show_stock_kline_pic(r.stock_id,r.date,120)
-            #raise
-            
-    df.apply(get_correction_box,axis=1)        
+            pass
+        return cnt
+    df['ma_tangled_day']=df.apply(get_correction_box,axis=1)
+    df.to_sql(name=table_name, con=self.con, if_exists='replace', index=False,chunksize=10)        
+    df_fin=pd.DataFrame()
+    df_fin=gen_final_df(df_fin,'全部',df)
+    df_fin=gen_final_df(df_fin,'大市值 均線糾纏日期>=5',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"ma_tangled_day"] >=5 ) ] )
+    df_fin=gen_final_df(df_fin,'大市值 均線糾纏日期<5',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"ma_tangled_day"] <5 ) ] )
+    df_fin=gen_final_df(df_fin,'小市值 均線糾纏日期>=5',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"ma_tangled_day"] >=5 ) ] )
+    df_fin=gen_final_df(df_fin,'小市值 均線糾纏日期<5',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"ma_tangled_day"] <5 ) ] )
     print(lno(),df_fin)
-    comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
+    comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format("均線糾纏",startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
 def find_ma1_cross_ma5(df):
     if len(df.index)==0:
         return np.nan
@@ -847,7 +866,17 @@ def find_ma1_cross_ma5(df):
     for ma in ma_list:
         df['MA_' + str(ma)] = talib.MA(df.close,ma)
         #tmp.append(talib.LINEARREG_ANGLE(df1['MA_'+ str(ma)].values,ma)[-1])
-    print(lno(),df.tail(5))    
+    #print(lno(),df.tail(5))
+    threshold = df.iloc[-1]['close']*0.025
+    print(lno(),threshold)
+    peaks, _ = signal.find_peaks(df.close,prominence=threshold, distance=2)
+    print(lno(),peaks)
+    prominences = signal.peak_prominences(df.close, peaks)[0]
+    print(lno(),prominences)
+    #peaks = signal.find_peaks(df.close, prominence=threshold) # 找相對高點 
+    #print(lno(),peaks[0])
+    kline.show_stock_kline_pic_by_df(df)
+    sys.exit()   
     return 1
     pass
 def findstock_test(startdate,enddate):
@@ -874,8 +903,8 @@ def findstock_test(startdate,enddate):
 參考 投信 基金績效 一年前10名 10大持股 新增 或是 持有 最近跌10% 投信開始買進
 """ 
 if __name__ == '__main__':
-    #print (lno(),sys.path[0])
-    #get_cur_twii_list(datetime.today())
+    ##TODO begin test
+    
     if len(sys.argv)==1:
         startdate=stock_comm.get_date()
         down_fut_op_big3(startdate)
@@ -919,7 +948,7 @@ if __name__ == '__main__':
             print (lno(),df)  
     elif sys.argv[1]=='t1' :
         if len(sys.argv)==4 :
-            ## TODO find_stock test1 generate
+            ## TODO 傳function 給run_fun 做股票篩選
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             #method='LongRed_Breakthrough_10day'
@@ -975,7 +1004,7 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
             method='VeryLongRed_10day'
-            find_stock_get_box(method,startdate,enddate)         
+            find_stock_ma_tangled(method,startdate,enddate)         
     elif sys.argv[1]=='t2' :
         if len(sys.argv)==4 :
             ## TODO 分析 大小市值 斜率

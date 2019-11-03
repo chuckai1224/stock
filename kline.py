@@ -656,11 +656,94 @@ def generate_stock_kline_pic(stock_no,enddate,outf,df_in=pd.DataFrame()):
     plt.close(fig)
 
 def show_stock_kline_pic(stock_no,enddate,cnt):
-    dfs=comm.get_stock_df_bydate_nums(stock_no,cnt,enddate)
-    dfs=df_in    
-    #print(lno(),df1.tail())
+    stk=comm.stock_data()
+    dfs=stk.get_df_by_enddate_num(stock_no,enddate+relativedelta(months=4),cnt+75)
+    #dfs=df_in    
     dfs['str_date']=[comm.str_Ymd2md(x) for x in dfs['date'] ]
     
+    df=dfs.reset_index(drop=True).copy()
+    #print(lno(),df)
+    index=df[(df.loc[:,"date"] <= enddate)].index[0]
+    df['vol'] = df['vol'] /1000000
+    format1=lambda x:"%.3f"%x
+    df["vol"]=df["vol"].map(format1)
+    
+    ma_list = [5,10,20]
+    for ma in ma_list:
+        df['MA_' + str(ma)] = df['close'].rolling(window=ma,center=False).mean()
+    df['dates'] = np.arange(0, len(df))
+    date_tickers = df['str_date'].values
+    fig = plt.figure(figsize=(16, 5))
+    fig.suptitle('%s %s'%(stock_no,comm.get_name_by_stock_id(stock_no)), fontsize=20, fontweight='bold')
+    ax1 = fig.add_axes([0.1,0.3,0.9,0.6])
+    ax2 = fig.add_axes([0.1,0.1,0.9,0.2],sharex = ax1)
+    #ax3 = fig.add_axes([0.1,0.15,0.9,0.3])
+    #ax4 = fig.add_axes([0.1,0.05,0.9,0.1],sharex = ax3)
+ 
+    def format_date(x,pos=None):
+        if x<0 or x>len(date_tickers)-1:
+            return ''
+        return date_tickers[int(x)] 
+    ax1.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
+    # 绘制K线图
+    mpl_finance.candlestick_ochl(ax=ax1,quotes=df[['dates', 'open', 'close', 'high', 'low']].values,width=0.7,colorup='r',colordown='g',alpha=0.7)
+    
+    ax1.plot(df['MA_5'].values, label='5日均線')
+    ax1.plot(df['MA_10'].values, label='10日均線')
+    ax1.plot(df['MA_20'].values, label='20日均線')
+    ax1.set_title('日K',loc='left')
+    ax1.legend();
+    x=df.close.values
+    peaks, _ = signal.find_peaks(x,prominence=df.iloc[-1]['close']*0.08)
+    print(lno(),peaks)
+    ax1.plot(peaks, x[peaks], "x")
+    index=df[(df.loc[:,"date"] <= enddate)].index[-1]
+    print(lno(),index)
+    ax1.axvline(index, 0.2, 0.8, linestyle= '--')
+
+    #ax2.xaxis.set_major_locator(mticker.MaxNLocator(len(df['date'])))        
+    ax2.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
+    #ax2.xaxis.set_ticks_position('none')
+    mpl_finance.volume_overlay(ax2, df['open'], df['close'], df['vol'], colorup='r', colordown='g', width=0.7, alpha=0.7)
+    
+    ax2.set_ylabel('成交量(千張)')
+    
+    df2=stk.get_df_by_startdate_enddate(stock_no,enddate,enddate+relativedelta(days=100))
+    #dfs=df_in    
+    #print(lno(),df1.tail())
+    df2['str_date']=[comm.str_Ymd2md(x) for x in df2['date'] ]
+    
+    df2=df2.reset_index(drop=True).copy()
+    #print(lno(),df)
+    df2['vol'] = df2['vol'] /1000000
+    format1=lambda x:"%.3f"%x
+    df2["vol"]=df2["vol"].map(format1)
+    df2['dates'] = np.arange(0, len(df2.index))
+    date_tickers2 = df2['str_date'].values
+    """
+    ax3 = fig.add_axes([0.1,0.15,0.9,0.3])
+    ax4 = fig.add_axes([0.1,0.05,0.9,0.1],sharex = ax3)
+ 
+    def format_date2(x,pos=None):
+        if x<0 or x>len(date_tickers2)-1:
+            return ''
+        return date_tickers2[int(x)] 
+    ax3.xaxis.set_major_formatter(ticker.FuncFormatter(format_date2))
+    # 绘制K线图
+    mpl_finance.candlestick_ochl(ax=ax3,quotes=df2[['dates', 'open', 'close', 'high', 'low']].values,width=0.7,colorup='r',colordown='g',alpha=0.7)
+    ax3.set_title('日K',loc='left')
+    ax3.legend();
+    ax4.xaxis.set_major_formatter(ticker.FuncFormatter(format_date2))
+    mpl_finance.volume_overlay(ax4, df2['open'], df2['close'], df2['vol'], colorup='r', colordown='g', width=0.7, alpha=0.7)
+    
+    ax4.set_ylabel('成交量(千張)')
+    """
+    plt.show()  
+import scipy.signal as signal    
+def show_stock_kline_pic_by_df(df_in):
+    dfs=df_in
+    #print(lno(),df1.tail())
+    dfs['str_date']=[comm.str_Ymd2md(x) for x in dfs['date'] ]
     df=dfs.reset_index(drop=True).copy()
     #print(lno(),df)
     df['vol'] = df['vol'] /1000000
@@ -675,7 +758,6 @@ def show_stock_kline_pic(stock_no,enddate,cnt):
     df['dates'] = np.arange(0, len(df))
     date_tickers = df['str_date'].values
     fig = plt.figure(figsize=(10, 5))
-    fig.suptitle('%s %s'%(stock_no,comm.get_name_by_stock_id(stock_no)), fontsize=20, fontweight='bold')
     ax1 = fig.add_axes([0.1,0.6,0.9,0.3])
     ax2 = fig.add_axes([0.1,0.5,0.9,0.1],sharex = ax1)
  
@@ -692,17 +774,18 @@ def show_stock_kline_pic(stock_no,enddate,cnt):
     ax1.plot(df['MA_20'].values, label='20日均線')
     ax1.set_title('日K',loc='left')
     ax1.legend();
+    """
+    x=df.close.values
+    peaks, _ = signal.find_peaks(x,prominence=df.iloc[-1]['close']*0.025, distance=2)
+    ax1.plot(peaks, x[peaks], "x")
+    """
     #ax2.xaxis.set_major_locator(mticker.MaxNLocator(len(df['date'])))        
     ax2.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
     #ax2.xaxis.set_ticks_position('none')
     mpl_finance.volume_overlay(ax2, df['open'], df['close'], df['vol'], colorup='r', colordown='g', width=0.7, alpha=0.7)
     
     ax2.set_ylabel('成交量(千張)')
-    cnt=40
     plt.show()  
-    plt.clf()
-    plt.close(fig)
-
 
 if __name__ == '__main__':
     sns.set()
