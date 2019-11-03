@@ -377,7 +377,12 @@ class findstock:
         #print(lno(),stokc_id,box_high,box_low,long_ratio)
         if long_ratio < 3 :
             return
-        self.out.append([self.rundate,self.market,r.stock_id,'%s'%(self.strategy),box_high,box_low,long_ratio])    
+        self.out.append([self.rundate,self.market,r.stock_id,'%s'%(self.strategy),box_high,box_low,long_ratio]) 
+    def get_longred_sql(self,startdate,enddate):
+        table_name='verylongred_v1'
+        cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
+        df = pd.read_sql(cmd, con=self.con, parse_dates=['date']) 
+        return df
     def test1(self,r):
         if comm.check_stock_id(r.stock_id)==False:
             return 
@@ -510,7 +515,6 @@ class findstock:
     """ 
     ##TODO Q指標 https://xstrader.net/%E7%A8%8B%E5%BC%8F%E4%BA%A4%E6%98%93%E5%9C%A8%E5%9F%BA%E9%87%91%E6%8A%95%E8%B3%87%E4%B8%8A%E7%9A%84%E6%87%89%E7%94%A8%E4%B9%8B%E4%BA%8Cq%E6%8C%87%E6%A8%99/  
     def analy(self,method,startdate,enddate):
-        ##TODO  len(df.index)==>len(df)
         tStart = time.time()
         table_name=method
         cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
@@ -616,104 +620,26 @@ class findstock:
         tEnd = time.time()
         print ("It cost %.3f sec" % (tEnd - tStart))           
 
-    def run_days(self):
-        nowdate=self.rundate
-        stk=comm.stock_data()
-
-        day=0
-        tStart = time.time()
-        while day<10:
-            nowdate=self.rundate -relativedelta(days=day)
-            day=day+1
-            d=comm.get_tse_exchange_data(nowdate)
-           
-            for j in range(0, len(d)):
-                i=d.at[j,'stock_id']
-                if comm.check_stock_id(i)==False:
-                    continue
-                ##平盤 收綠 不要
-                try:
-                    diff=float(d.at[j,'diff'])
-                    if diff<=0:
-                        continue    
-                except:
-                    print(lno(),d.iloc[j])
-                    continue
-                open=float(d.at[j,'open'])
-                close=float(d.at[j,'close'])
-                pre_close=close-diff
-                if open >pre_close:
-                    LongRedK_ratio= (close -pre_close)/pre_close
-                else :
-                    LongRedK_ratio= (close -open)/pre_close
-                ##紅K幅度小於3% 不要    
-                if LongRedK_ratio<=0.03:
-                    continue
-                high=float(d.at[j,'high'])
-                upper_shadows_ratio=(high-close)/pre_close
-                if (upper_shadows_ratio/LongRedK_ratio)>0.3:
-                    continue
-                flag='twse'    
-                
-                #print(lno(),i)
-                """
-                stk=comm.stock_data(i,engine)
-                df=stk.get_df()
-                """
-                ##TODO test sql 
-                #"""
-                try:
-                    df=pd.read_sql('select * from "{}"'.format(i),con=conn)
-                    print(lno(),df.dtypes)
-                    #print(lno(),df.head())
-                    
-                except:
-                    print(lno(),i)
-                    continue
-                #"""    
-                #df=comm.get_stock_df(i)
-                #print(lno(),df.dtypes)
-                #print(lno(),i,nowdate)
-               
-                df_now=comm.get_df_bydate_nums(df,240,self.rundate)
-                period=20
-                df_box=df_now.iloc[-period-1:-1]
-                box_high=df_now.high.max()
-                box_low=df_now.low.min()
-                #print(lno(),close,box_high,box_low)
-                #print(lno(),len(df_box))
-                #print(lno(),df_now.tail(5))
-                if close <=box_high:
-                    continue
-                #print(lno(),df_box)
-                print(lno(),i,nowdate,box_high,box_low)
-                #print(lno(),df_now.tail())
-                ## TODO  k線型態 辨識 突起物 
-                # 自動偵測高低點
-                #threshold = 750 # 設定突起度門檻
-                #peaks = signal.find_peaks(stock['price'], prominence=threshold)[0] # 找相對高點
-                #valleys = signal.find_peaks(-stock['price'], prominence=threshold)[0]
-                #df1=comm.get_stock_df_bydate_nums(i,240,self.rundate)
-                #df1=comm.get_stock_df(i)
-                """
-                ## 3026  2009 12 21 前60  
-                #https://kknews.cc/zh-tw/invest/x6q942o.html
-                corropen=round(np.corrcoef(open[s1],open[s2])[0][1],3)
-                corrohigh=round(np.corrcoef(high[s1],high[s2])[0][1],3)
-                corrlow=round(np.corrcoef(low[s1],low[s2])[0][1],3)
-                corrclose=round(np.corrcoef(close[s1],close[s2])[0][1],3)
-                T=(corropen+corrohigh+corrlow+corrclose)/4
-                T=round(T,2)
-                #https://www.itread01.com/content/1547222045.html
-                #https://ufclark.pixnet.net/blog/post/3844923
-                """
-                 
-                break
-                #self.check_long_mode1(flag,i,self.rundate)
-                
-        tEnd = time.time()
-        print ("It cost %.3f sec" % (tEnd - tStart))  
-        pass
+        ## TODO  k線型態 辨識 突起物 
+        # 自動偵測高低點
+        #threshold = 750 # 設定突起度門檻
+        #peaks = signal.find_peaks(stock['price'], prominence=threshold)[0] # 找相對高點
+        #valleys = signal.find_peaks(-stock['price'], prominence=threshold)[0]
+        #df1=comm.get_stock_df_bydate_nums(i,240,self.rundate)
+        #df1=comm.get_stock_df(i)
+        """
+        ## 3026  2009 12 21 前60  
+        #https://kknews.cc/zh-tw/invest/x6q942o.html
+        corropen=round(np.corrcoef(open[s1],open[s2])[0][1],3)
+        corrohigh=round(np.corrcoef(high[s1],high[s2])[0][1],3)
+        corrlow=round(np.corrcoef(low[s1],low[s2])[0][1],3)
+        corrclose=round(np.corrcoef(close[s1],close[s2])[0][1],3)
+        T=(corropen+corrohigh+corrlow+corrclose)/4
+        T=round(T,2)
+        #https://www.itread01.com/content/1547222045.html
+        #https://ufclark.pixnet.net/blog/post/3844923
+        """
+        
     def run_fun(self,rundate,fun,table_name):
         self.rundate=rundate
         markets=['tse','otc']
@@ -784,26 +710,57 @@ def gen_final_df(df_fin,name,df1):
     df_fin=pd.concat([df_fin, dfo])
     return df_fin
     #return _list
-
+def gen_cond_fin_df(df_fin,cond,df):
+    str='{}>={} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
+    str='{}>={} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
+    str='{}<{} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] < cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
+    str='{}<{} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] < cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
+    return df_fin
+def gen_3cond_fin_df(df_fin,cond,df):
+    ##TODO FIXME need add 3 cond
+    str='{}>={} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1],cond[2][0],cond[2][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
+            & (df.loc[:,cond[1][0]] >=cond[1][1] )& (df.loc[:,cond[2][0]] >=cond[2][1] ) ] )
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
+            & (df.loc[:,cond[1][0]] >=cond[1][1] )& (df.loc[:,cond[2][0]] <cond[2][1] ) ] )
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
+            & (df.loc[:,cond[1][0]] <cond[1][1] )& (df.loc[:,cond[2][0]] >=cond[2][1] ) ] )
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
+            & (df.loc[:,cond[1][0]] <cond[1][1] )& (df.loc[:,cond[2][0]] <cond[2][1] ) ] )
+    str='{}>={} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
+    str='{}<{} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] < cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
+    str='{}<{} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] < cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
+    return df_fin    
 def find_stock_analy(method,startdate,enddate):
     engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
     stk=comm.stock_data()
     con = engine.connect() 
     
-    table_name='verylongred_v1'
+    table_name='verylongred_v2'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     df_fin=pd.DataFrame()
+    
     df_fin=gen_final_df(df_fin,'全部',df)
-    df_fin=gen_final_df(df_fin,'大市值 MA89往上',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
-    df_fin=gen_final_df(df_fin,'大市值 MA89往下',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
-    df_fin=gen_final_df(df_fin,'小市值 MA89往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 ) ] )
-    df_fin=gen_final_df(df_fin,'小市值 MA89往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 ) ] )
+    
+    cond=[["市值(億)",100],["MA89(角度)",0.0]]
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
+    cond=[["市值(億)",100],["MA21(角度)",0.0]]
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
     df_fin=gen_final_df(df_fin,'小市值 MA89往上21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往上21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
-   
+    cond=[["市值(億)",100],["上影線比例",0.3]]
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
+    
     print(lno(),df_fin)
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
 def find_stock_ma_tangled(method,startdate,enddate):
@@ -817,6 +774,7 @@ def find_stock_ma_tangled(method,startdate,enddate):
     #print(lno(),df.duplicated())
     #print(lno(),df)
     #raise
+    tStart = time.time()
     def get_correction_box(r):
         ##突破當日資料不要
         df1=stk.get_df_by_enddate_num(r.stock_id,r.date-relativedelta(days=1),120)
@@ -850,8 +808,9 @@ def find_stock_ma_tangled(method,startdate,enddate):
             #kline.show_stock_kline_pic(r.stock_id,r.date,120)
             pass
         return cnt
-    df['ma_tangled_day']=df.swifter.apply(get_correction_box,axis=1)
-    df.to_sql(name='verylongred_v2', con=self.con, if_exists='replace', index=False,chunksize=10)        
+    #df['ma_tangled_day']=df.swifter.apply(get_correction_box,axis=1)
+    df['ma_tangled_day']=df.apply(get_correction_box,axis=1)
+    #df.to_sql(name='verylongred_v2', con=con, if_exists='replace', index=False,chunksize=10)        
     df_fin=pd.DataFrame()
     df_fin=gen_final_df(df_fin,'全部',df)
     df_fin=gen_final_df(df_fin,'大市值 均線糾纏日期>=5',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"ma_tangled_day"] >=5 ) ] )
@@ -860,6 +819,8 @@ def find_stock_ma_tangled(method,startdate,enddate):
     df_fin=gen_final_df(df_fin,'小市值 均線糾纏日期<5',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"ma_tangled_day"] <5 ) ] )
     print(lno(),df_fin)
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format("均線糾纏",startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
+    tEnd = time.time()
+    print ("It cost %.3f sec" % (tEnd - tStart))   
 def find_ma1_cross_ma5(df):
     if len(df.index)==0:
         return np.nan
@@ -891,6 +852,45 @@ def findstock_test(startdate,enddate):
         print(lno(),nowdate)
         fs.run_fun(nowdate,find_ma1_cross_ma5,'test1')
         day=day+1 
+
+    
+def longred_upper_shadow(startdate,enddate):
+    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    stk=comm.stock_data()
+    con = engine.connect() 
+    table_name='verylongred_v1'
+    cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
+    df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
+    print(lno(),len(df))
+    sys.exit()
+    def upper_shadow(r):
+        df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
+        upper_shadow=df1.at[0,'high']-df1.at[0,'close']
+        real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
+        #print(lno(),r.date,df1)
+        if real_body==0:
+           return np.nan     
+        return upper_shadow/real_body
+        
+    df['上影線比例']=df.apply(upper_shadow,axis=1)
+    df = df.rename(columns={'ma_tangled_day': '均線糾纏日期'})
+    df.to_sql(name='verylongred_v2', con=con, if_exists='replace', index=False,chunksize=10)
+    cond=[["市值(億)",100],["上影線比例",0.3]]
+    #print(lno(),len(condition))
+    df_fin=pd.DataFrame()
+    #print(lno(),cond[0])
+    str='{}>={} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
+    str='{}>={} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
+    str='{}<{} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
+    str='{}<{} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
+    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
+    
+    
+    print(lno(),df_fin)
+    pass
     
 """
 我永遠都在尋找四種股票
@@ -1002,12 +1002,19 @@ if __name__ == '__main__':
             find_stock.analy(method,startdate,enddate) 
     elif sys.argv[1]=='g3' :
         if len(sys.argv)==4 :
-            ## TODO 長紅K 抓取盤整區
+            ## TODO 長紅K 抓取均線糾結
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
             method='VeryLongRed_10day'
-            find_stock_ma_tangled(method,startdate,enddate)         
+            find_stock_ma_tangled(method,startdate,enddate)  
+    elif sys.argv[1]=='g4' :
+        if len(sys.argv)==4 :
+            ## TODO 長紅K 上影分析
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+            method='upper_shadow'
+            longred_upper_shadow(startdate,enddate)          
     elif sys.argv[1]=='t2' :
         if len(sys.argv)==4 :
             ## TODO 分析 大小市值 斜率

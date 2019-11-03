@@ -1546,9 +1546,9 @@ def generate_stock_html_mode2(enddate,practice=0,mode='股job',in_df=[],debug=1)
         d=df_s[['公司代號','公司名稱']].copy()
         print(lno(),d)
     else:
-        #d=in_df[0][['stock_id','stock_name']].copy()
-        a=[['2308','台達電']]
-        d = pd.DataFrame(a)
+        d=in_df[0][['stock_id','stock_name']].copy()
+        #a=[['2308','台達電']]
+        #d = pd.DataFrame(a)
         d.columns=['公司代號','公司名稱']
     otc_df=comm.get_otc_exchange_data(enddate)
     otc_list=otc_df['stock_id'].values.tolist()
