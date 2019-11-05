@@ -44,7 +44,7 @@ import talib
 from talib import abstract
 import scipy.signal as signal 
 from stocktool import comm as cm1 
-import swifter
+import platform
 def lno():
     cf = currentframe()
     filename = getframeinfo(cf).filename
@@ -880,25 +880,33 @@ def call_apply_upper_shadow(df):
     return df.apply(upper_shadow, axis=1)  
 def over_prev_high(r):
     #print(lno(),r)
+    #if platform.system().upper()=='LINUX':
     stk=comm.stock_data() #for multi process
-    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
+    #df1=stk.get_df_by_enddate_num(r.stock_id,r.date,2)
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,5)
     #print(lno(),r.date,df1)
-    upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
-    real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
-    if real_body==0:
+    try :
+        over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
+    except:
+        print(lno(),"some thing wrong",df1)
+        #raise
         return np.nan     
-    return upper_shadow_val/real_body
+    return over_phigh
 def call_apply_over_prev_high(df):
-    return df.apply(upper_shadow, axis=1)      
+    return df.apply(over_prev_high, axis=1)      
 def pool_map(function_name, df, processes = multiprocessing.cpu_count()):
-    n_processes = processes  # My machine has 4 CPUs
+    if platform.system().upper()=='LINUX':
+        n_processes = processes  # My machine has 4 CPUs
+    else:
+        n_processes = 1
     df_split = np.array_split(df, n_processes)
     return multiprocessing.Pool(processes).map(function_name, df_split)
 
 def longred_analy_mode(startdate,enddate,mode):
-    #engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
-    #stk=comm.stock_data()
-    #con = engine.connect() 
+    
+    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    stk=comm.stock_data()
+    con = engine.connect() 
     table_name='verylongred_v1'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
@@ -906,15 +914,29 @@ def longred_analy_mode(startdate,enddate,mode):
     print(lno(),len(df))
     #"""
     tStart = time.time()
-    
-    tStart = time.time()
     if mode=='upper_shadow':
         pool_results=pool_map(call_apply_upper_shadow,df)
         df['上影線比例'] = pd.concat(pool_results)
         cond=[["市值(億)",100],['上影線比例',0.3]]
     elif mode=='over_prev_high':
-        pool_results=pool_map(call_apply_over_prev_high,df)
-        df['過昨日高'] = pd.concat(pool_results)
+        if 1:##platform.system().upper()=='LINUX':
+            pool_results=pool_map(call_apply_over_prev_high,df)
+            df['過昨日高'] = pd.concat(pool_results)
+        else:
+            def over_prev_high_win(r):
+                #print(lno(),r.date)
+                df1=stk.get_df_by_enddate_num(r.stock_id,r.date,5)
+                #print(lno(),r.date,df1)
+                try :
+                    over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
+                except:
+                    print(lno(),r.stock_id,"some thing wrong",df1)
+                    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,5)
+                    print(lno(),"some thing wrong",df1)
+                    #raise
+                    return np.nan     
+                return over_phigh
+            df['過昨日高']=df.apply(over_prev_high_win,axis=1)
         cond=[["市值(億)",100],['過昨日高',1]]
     else:
         raise    
@@ -954,9 +976,9 @@ def longred_analy_mode(startdate,enddate,mode):
 """ 
 if __name__ == '__main__':
     ##TODO begin test
-    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
-    con = engine.connect() 
-    stk=comm.stock_data()
+    #engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    #con = engine.connect() 
+    #stk=comm.stock_data()
     if len(sys.argv)==1:
         startdate=stock_comm.get_date()
         down_fut_op_big3(startdate)
@@ -1070,7 +1092,7 @@ if __name__ == '__main__':
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             method='over_prev_high'
-            longred_analy_mode(startdate,enddate,mode)                   
+            longred_analy_mode(startdate,enddate,method)                   
     elif sys.argv[1]=='r' :
         if len(sys.argv)==4 :
             ## TODO r report all 分析 大小市值 斜率
