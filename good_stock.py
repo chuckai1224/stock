@@ -743,7 +743,7 @@ def find_stock_analy(method,startdate,enddate):
     stk=comm.stock_data()
     con = engine.connect() 
     
-    table_name='verylongred_v2'
+    table_name='verylongred_v1'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     df_fin=pd.DataFrame()
@@ -758,6 +758,9 @@ def find_stock_analy(method,startdate,enddate):
     df_fin=gen_final_df(df_fin,'小市值 MA89往上21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
+    
+    cond=[["市值(億)",100],["均線糾纏日期",5]]
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
     cond=[["市值(億)",100],["上影線比例",0.3]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
     
@@ -854,7 +857,7 @@ def findstock_test(startdate,enddate):
         day=day+1 
 
     
-def longred_upper_shadow(startdate,enddate):
+def longred_analy_mode(startdate,enddate,mode):
     engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
     stk=comm.stock_data()
     con = engine.connect() 
@@ -862,7 +865,6 @@ def longred_upper_shadow(startdate,enddate):
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     print(lno(),len(df))
-    sys.exit()
     def upper_shadow(r):
         df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
         upper_shadow=df1.at[0,'high']-df1.at[0,'close']
@@ -871,11 +873,17 @@ def longred_upper_shadow(startdate,enddate):
         if real_body==0:
            return np.nan     
         return upper_shadow/real_body
-        
-    df['上影線比例']=df.apply(upper_shadow,axis=1)
-    df = df.rename(columns={'ma_tangled_day': '均線糾纏日期'})
-    df.to_sql(name='verylongred_v2', con=con, if_exists='replace', index=False,chunksize=10)
-    cond=[["市值(億)",100],["上影線比例",0.3]]
+    if mode=='upper_shadow':
+        df['上影線比例']=df.apply(upper_shadow,axis=1)
+        cond=[["市值(億)",100],['上影線比例',0.3]]
+    elif mode=='over_prev_high':
+        df['過昨日高']=df.apply(over_prev_high,axis=1)
+        cond=[["市值(億)",100],['過昨日高',1]]
+    else:
+        raise    
+            
+    #df.to_sql(name='verylongred_v2', con=con, if_exists='replace', index=False,chunksize=10)
+    
     #print(lno(),len(condition))
     df_fin=pd.DataFrame()
     #print(lno(),cond[0])
@@ -994,7 +1002,7 @@ if __name__ == '__main__':
                 day=day+1            
     elif sys.argv[1]=='g2' :
         if len(sys.argv)==4 :
-            ## TODO 長紅K 抓取斜率 市值
+            ## TODO g2 長紅K 抓取斜率 市值
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
@@ -1002,7 +1010,7 @@ if __name__ == '__main__':
             find_stock.analy(method,startdate,enddate) 
     elif sys.argv[1]=='g3' :
         if len(sys.argv)==4 :
-            ## TODO 長紅K 抓取均線糾結
+            ## TODO g3 長紅K 抓取均線糾結
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
@@ -1010,14 +1018,21 @@ if __name__ == '__main__':
             find_stock_ma_tangled(method,startdate,enddate)  
     elif sys.argv[1]=='g4' :
         if len(sys.argv)==4 :
-            ## TODO 長紅K 上影分析
+            ## TODO g4 長紅K 上影分析
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             method='upper_shadow'
-            longred_upper_shadow(startdate,enddate)          
-    elif sys.argv[1]=='t2' :
+            longred_analy_mode(startdate,enddate,method)
+    elif sys.argv[1]=='g5' :
         if len(sys.argv)==4 :
-            ## TODO 分析 大小市值 斜率
+            ## TODO g5 長紅K 過昨日高
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+            method='over_prev_high'
+            longred_analy_mode(startdate,enddate,mode)                   
+    elif sys.argv[1]=='r' :
+        if len(sys.argv)==4 :
+            ## TODO r report all 分析 大小市值 斜率
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             find_stock=findstock()
