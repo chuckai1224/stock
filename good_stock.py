@@ -9,8 +9,17 @@ import sys
 #import urllib2
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-#from grs import RealtimeWeight
-
+try:
+    import multiprocessing 
+    #from pandarallel import pandarallel
+    #pandarallel.initialize()
+    #from multiprocessing import Pool
+    #from pathos.multiprocessing import ProcessingPool as Pool
+    #n_processes = 4  # My machine has 4 CPUs
+    #pool = Pool(processes=n_processes)
+    pass
+except:
+    pass    
 import stock_comm as comm 
 import stock_big3
 import tdcc_dist
@@ -856,32 +865,62 @@ def findstock_test(startdate,enddate):
         fs.run_fun(nowdate,find_ma1_cross_ma5,'test1')
         day=day+1 
 
-    
+
+def upper_shadow(r):
+    #print(lno(),r)
+    stk=comm.stock_data() #for multi process
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
+    #print(lno(),r.date,df1)
+    upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
+    real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
+    if real_body==0:
+        return np.nan     
+    return upper_shadow_val/real_body
+def call_apply_upper_shadow(df):
+    return df.apply(upper_shadow, axis=1)  
+def over_prev_high(r):
+    #print(lno(),r)
+    stk=comm.stock_data() #for multi process
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
+    #print(lno(),r.date,df1)
+    upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
+    real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
+    if real_body==0:
+        return np.nan     
+    return upper_shadow_val/real_body
+def call_apply_over_prev_high(df):
+    return df.apply(upper_shadow, axis=1)      
+def pool_map(function_name, df, processes = multiprocessing.cpu_count()):
+    n_processes = processes  # My machine has 4 CPUs
+    df_split = np.array_split(df, n_processes)
+    return multiprocessing.Pool(processes).map(function_name, df_split)
+
 def longred_analy_mode(startdate,enddate,mode):
-    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
-    stk=comm.stock_data()
-    con = engine.connect() 
+    #engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    #stk=comm.stock_data()
+    #con = engine.connect() 
     table_name='verylongred_v1'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
+
     print(lno(),len(df))
-    def upper_shadow(r):
-        df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
-        upper_shadow=df1.at[0,'high']-df1.at[0,'close']
-        real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
-        #print(lno(),r.date,df1)
-        if real_body==0:
-           return np.nan     
-        return upper_shadow/real_body
+    #"""
+    tStart = time.time()
+    
+    tStart = time.time()
     if mode=='upper_shadow':
-        df['上影線比例']=df.apply(upper_shadow,axis=1)
+        pool_results=pool_map(call_apply_upper_shadow,df)
+        df['上影線比例'] = pd.concat(pool_results)
         cond=[["市值(億)",100],['上影線比例',0.3]]
     elif mode=='over_prev_high':
-        df['過昨日高']=df.apply(over_prev_high,axis=1)
+        pool_results=pool_map(call_apply_over_prev_high,df)
+        df['過昨日高'] = pd.concat(pool_results)
         cond=[["市值(億)",100],['過昨日高',1]]
     else:
         raise    
-            
+    tEnd = time.time()
+    print ("It cost %.3f sec" % (tEnd - tStart))         
+    
     #df.to_sql(name='verylongred_v2', con=con, if_exists='replace', index=False,chunksize=10)
     
     #print(lno(),len(condition))
@@ -915,7 +954,9 @@ def longred_analy_mode(startdate,enddate,mode):
 """ 
 if __name__ == '__main__':
     ##TODO begin test
-    
+    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    con = engine.connect() 
+    stk=comm.stock_data()
     if len(sys.argv)==1:
         startdate=stock_comm.get_date()
         down_fut_op_big3(startdate)
