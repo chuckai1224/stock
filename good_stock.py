@@ -11,7 +11,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 try:
     import multiprocessing 
-    #from pandarallel import pandarallel
+    from pandarallel import pandarallel
     #pandarallel.initialize()
     #from multiprocessing import Pool
     #from pathos.multiprocessing import ProcessingPool as Pool
@@ -720,18 +720,45 @@ def gen_final_df(df_fin,name,df1):
     return df_fin
     #return _list
 def gen_cond_fin_df(df_fin,cond,df):
-    str='{}>={} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
-    str='{}>={} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
-    str='{}<{} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] < cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
-    str='{}<{} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] < cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
+    cond0=cond[0][0]
+    va0=cond[0][1]
+    cond1=cond[1][0]
+    va1=cond[1][1]
+    if len(cond[1])==4:
+        va2=cond[1][2]
+        va3=cond[1][3]
+        str='{}>={} {}>={}'.format(cond0,va0,cond1,va1)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] >=va1 ) ] )
+        str='{}>={} {}<{} >={}'.format(cond0,va0,cond1,va1,va2)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va1 )&(df.loc[:,cond1] >=va2 ) ] )
+        str='{}>={} {}<{} >={}'.format(cond0,va0,cond1,va2,va3)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va2 )&(df.loc[:,cond1] >=va3 ) ] )
+        str='{}>={} {}<{} '.format(cond0,va0,cond1,va3)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va3 ) ] ) 
+
+
+        str='{}<{} {}>={}'.format(cond0,va0,cond1,va1)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] >=va1 ) ] )
+        str='{}<{} {}<{} >={}'.format(cond0,va0,cond1,va1,va2)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va1 )&(df.loc[:,cond1] >=va2 ) ] )
+        str='{}<{} {}<{} >={}'.format(cond0,va0,cond1,va2,va3)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va2 )&(df.loc[:,cond1] >=va3 ) ] )
+        str='{}<{} {}<{} '.format(cond0,va0,cond1,va3)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va3 ) ] ) 
+
+    else:    
+        str='{}>={} {}>={}'.format(cond0,va0,cond1,va1)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] >=va1 ) ] )
+        str='{}>={} {}<{}'.format(cond0,va0,cond1,va1)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va1 ) ] )
+        str='{}<{} {}>={}'.format(cond0,va0,cond1,va1)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] >=va1 ) ] )
+        str='{}<{} {}<{}'.format(cond0,va0,cond1,va1)
+        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va1 ) ] )
     return df_fin
 def gen_3cond_fin_df(df_fin,cond,df):
     ##TODO FIXME need add 3 cond
-    str='{}>={} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1],cond[2][0],cond[2][1])
+    str='{}>={} {}>={}'.format(cond[0][0],va0,cond1,cond[1][1],cond[2][0],cond[2][1])
     df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
             & (df.loc[:,cond[1][0]] >=cond[1][1] )& (df.loc[:,cond[2][0]] >=cond[2][1] ) ] )
     df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
@@ -772,7 +799,10 @@ def find_stock_analy(method,startdate,enddate):
     df_fin=gen_cond_fin_df(df_fin,cond,df)
     cond=[["市值(億)",100],["上影線比例",0.3]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
-    
+    cond=[["市值(億)",100],["過昨日高",0.0]]
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
+    cond=[["市值(億)",100],['量增比例',8,3,1]]
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
     print(lno(),df_fin)
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
 def find_stock_ma_tangled(method,startdate,enddate):
@@ -866,34 +896,16 @@ def findstock_test(startdate,enddate):
         day=day+1 
 
 
-def upper_shadow(r):
-    #print(lno(),r)
-    stk=comm.stock_data() #for multi process
-    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
-    #print(lno(),r.date,df1)
-    upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
-    real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
-    if real_body==0:
-        return np.nan     
-    return upper_shadow_val/real_body
+
 def call_apply_upper_shadow(df):
     return df.apply(upper_shadow, axis=1)  
-def over_prev_high(r):
-    #print(lno(),r)
-    #if platform.system().upper()=='LINUX':
-    stk=comm.stock_data() #for multi process
-    #df1=stk.get_df_by_enddate_num(r.stock_id,r.date,2)
-    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,5)
-    #print(lno(),r.date,df1)
-    try :
-        over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
-    except:
-        print(lno(),"some thing wrong",df1)
-        #raise
-        return np.nan     
-    return over_phigh
-def call_apply_over_prev_high(df):
-    return df.apply(over_prev_high, axis=1)      
+
+def df_apply_fun(df,func):
+    if platform.system().upper()=='LINUX':    
+        pandarallel.initialize()
+        return df.parallel_apply(func,axis=1)
+    else:
+        return df.apply(over_prev_high, axis=1)      
 def pool_map(function_name, df, processes = multiprocessing.cpu_count()):
     if platform.system().upper()=='LINUX':
         n_processes = processes  # My machine has 4 CPUs
@@ -915,47 +927,59 @@ def longred_analy_mode(startdate,enddate,mode):
     #"""
     tStart = time.time()
     if mode=='upper_shadow':
-        pool_results=pool_map(call_apply_upper_shadow,df)
-        df['上影線比例'] = pd.concat(pool_results)
+        def upper_shadow(r):
+            #print(lno(),r)
+            stk=comm.stock_data() #for multi process
+            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
+            #print(lno(),r.date,df1)
+            upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
+            real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
+            if real_body==0:
+                return np.nan     
+            return upper_shadow_val/real_body
+        df['上影線比例']=df_apply_fun(df,upper_shadow)    
         cond=[["市值(億)",100],['上影線比例',0.3]]
     elif mode=='over_prev_high':
-        if 1:##platform.system().upper()=='LINUX':
-            pool_results=pool_map(call_apply_over_prev_high,df)
-            df['過昨日高'] = pd.concat(pool_results)
-        else:
-            def over_prev_high_win(r):
-                #print(lno(),r.date)
-                df1=stk.get_df_by_enddate_num(r.stock_id,r.date,5)
-                #print(lno(),r.date,df1)
-                try :
-                    over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
-                except:
-                    print(lno(),r.stock_id,"some thing wrong",df1)
-                    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,5)
-                    print(lno(),"some thing wrong",df1)
-                    #raise
-                    return np.nan     
-                return over_phigh
-            df['過昨日高']=df.apply(over_prev_high_win,axis=1)
-        cond=[["市值(億)",100],['過昨日高',1]]
+        def over_prev_high(r):
+            #print(lno(),r)
+            if platform.system().upper()=='LINUX':
+                stk=comm.stock_data()
+            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
+            #print(lno(),r.date,df1)
+            try :
+                over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
+            except:
+                print(lno(),"some thing wrong",df1)
+                #raise
+                return np.nan     
+            return over_phigh
+        df['過昨日高']=df_apply_fun(df,over_prev_high)    
+        cond=[["市值(億)",100],['過昨日高',0]]
+    elif mode=='vol_ratio':
+        def vol_ratio(r):
+            #print(lno(),r)
+            if platform.system().upper()=='LINUX':
+                stk=comm.stock_data()
+            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
+            #print(lno(),r.date,df1)
+            try :
+                v_ratio=df1.iloc[-1]['vol']/df1.iloc[-2]['vol']
+            except:
+                print(lno(),"some thing wrong",df1)
+                #raise
+                return np.nan     
+            return v_ratio
+        df['量增比例']=df_apply_fun(df,vol_ratio)    
+        cond=[["市值(億)",100],['量增比例',8,3,1]]    
     else:
         raise    
     tEnd = time.time()
     print ("It cost %.3f sec" % (tEnd - tStart))         
     
-    #df.to_sql(name='verylongred_v2', con=con, if_exists='replace', index=False,chunksize=10)
-    
-    #print(lno(),len(condition))
+    #df.to_sql(name='verylongred_v1', con=con, if_exists='replace', index=False,chunksize=10)
     df_fin=pd.DataFrame()
-    #print(lno(),cond[0])
-    str='{}>={} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
-    str='{}>={} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
-    str='{}<{} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
-    str='{}<{} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
+    df_fin=gen_final_df(df_fin,'全部',df)
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
     
     
     print(lno(),df_fin)
@@ -1092,7 +1116,16 @@ if __name__ == '__main__':
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             method='over_prev_high'
-            longred_analy_mode(startdate,enddate,method)                   
+            longred_analy_mode(startdate,enddate,method)    
+    elif sys.argv[1]=='g6' :
+        if len(sys.argv)==4 :
+            ## TODO g5 長紅K 量增比例
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+            method='vol_ratio'
+            longred_analy_mode(startdate,enddate,method)    
+
+                           
     elif sys.argv[1]=='r' :
         if len(sys.argv)==4 :
             ## TODO r report all 分析 大小市值 斜率
