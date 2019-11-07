@@ -790,11 +790,12 @@ def find_stock_analy(method,startdate,enddate):
     df_fin=gen_cond_fin_df(df_fin,cond,df)
     cond=[["市值(億)",100],["MA21(角度)",0.0]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
+    """
     df_fin=gen_final_df(df_fin,'小市值 MA89往上21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往上21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 MA89往下21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
-    
+    """
     cond=[["市值(億)",100],["均線糾纏日期",5]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
     cond=[["市值(億)",100],["上影線比例",0.3]]
@@ -804,6 +805,20 @@ def find_stock_analy(method,startdate,enddate):
     cond=[["市值(億)",100],['量增比例',8,3,1]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
     print(lno(),df_fin)
+    cmp= df_fin.iloc[0]['5日勝率']
+    df_fin['5日勝率'] = df_fin['5日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+    cmp= df_fin.iloc[0]['5日獲利']
+    df_fin['5日獲利'] = df_fin['5日獲利'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+    
+    cmp= df_fin.iloc[0]['20日勝率']
+    df_fin['20日勝率'] = df_fin['20日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+    cmp= df_fin.iloc[0]['20日獲利']
+    df_fin['20日獲利'] = df_fin['20日獲利'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+    
+    cmp= df_fin.iloc[0]['60日勝率']
+    df_fin['60日勝率'] = df_fin['60日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+    cmp= df_fin.iloc[0]['60日獲利']
+    df_fin['60日獲利'] = df_fin['60日獲利'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
 def find_stock_ma_tangled(method,startdate,enddate):
     engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
@@ -860,6 +875,9 @@ def find_stock_ma_tangled(method,startdate,enddate):
     df_fin=gen_final_df(df_fin,'小市值 均線糾纏日期>=5',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"ma_tangled_day"] >=5 ) ] )
     df_fin=gen_final_df(df_fin,'小市值 均線糾纏日期<5',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"ma_tangled_day"] <5 ) ] )
     print(lno(),df_fin)
+   
+    
+    
     comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format("均線糾纏",startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
     tEnd = time.time()
     print ("It cost %.3f sec" % (tEnd - tStart))   
@@ -905,7 +923,7 @@ def df_apply_fun(df,func):
         pandarallel.initialize()
         return df.parallel_apply(func,axis=1)
     else:
-        return df.apply(over_prev_high, axis=1)      
+        return df.apply(func, axis=1)      
 def pool_map(function_name, df, processes = multiprocessing.cpu_count()):
     if platform.system().upper()=='LINUX':
         n_processes = processes  # My machine has 4 CPUs
@@ -913,12 +931,14 @@ def pool_map(function_name, df, processes = multiprocessing.cpu_count()):
         n_processes = 1
     df_split = np.array_split(df, n_processes)
     return multiprocessing.Pool(processes).map(function_name, df_split)
+g_stk = None
+g_engine=None
 
 def longred_analy_mode(startdate,enddate,mode):
     
-    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
-    stk=comm.stock_data()
-    con = engine.connect() 
+   
+    g_stk=comm.stock_data()
+    con = g_engine.connect() 
     table_name='verylongred_v1'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
@@ -928,8 +948,10 @@ def longred_analy_mode(startdate,enddate,mode):
     tStart = time.time()
     if mode=='upper_shadow':
         def upper_shadow(r):
-            #print(lno(),r)
-            stk=comm.stock_data() #for multi process
+            if platform.system().upper()=='LINUX':
+                stk=comm.stock_data()
+            else:
+                stk=g_stk    
             df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
             #print(lno(),r.date,df1)
             upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
@@ -944,6 +966,8 @@ def longred_analy_mode(startdate,enddate,mode):
             #print(lno(),r)
             if platform.system().upper()=='LINUX':
                 stk=comm.stock_data()
+            else:
+                stk=g_stk    
             df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
             #print(lno(),r.date,df1)
             try :
@@ -960,6 +984,8 @@ def longred_analy_mode(startdate,enddate,mode):
             #print(lno(),r)
             if platform.system().upper()=='LINUX':
                 stk=comm.stock_data()
+            else:
+                stk=g_stk   
             df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
             #print(lno(),r.date,df1)
             try :
@@ -979,8 +1005,10 @@ def longred_analy_mode(startdate,enddate,mode):
     #df.to_sql(name='verylongred_v1', con=con, if_exists='replace', index=False,chunksize=10)
     df_fin=pd.DataFrame()
     df_fin=gen_final_df(df_fin,'全部',df)
-    df_fin=gen_cond_fin_df(df_fin,cond,df)
-    
+    df_fin=gen_cond_fin_df(df_fin,cond,df)   
+    #cmp= df_fin.iloc[0]['5日勝率']
+    #df_fin['5日勝率'] = df_fin['5日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x) 
+    #df_fin.style.applymap(show,subset=['5日勝率'])
     
     print(lno(),df_fin)
     pass
@@ -999,10 +1027,14 @@ def longred_analy_mode(startdate,enddate,mode):
 參考 投信 基金績效 一年前10名 10大持股 新增 或是 持有 最近跌10% 投信開始買進
 """ 
 if __name__ == '__main__':
+    global g_stk
+    global g_engine
     ##TODO begin test
     #engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
     #con = engine.connect() 
-    #stk=comm.stock_data()
+    g_stk=comm.stock_data()
+    g_engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    
     if len(sys.argv)==1:
         startdate=stock_comm.get_date()
         down_fut_op_big3(startdate)

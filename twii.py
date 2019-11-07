@@ -508,12 +508,13 @@ def trend2str(x):
     if (x>0):
         return '多 :'+str
     return '空:'+str    
-def show_twii_v1(objdatetime,debug=1):
+def show_twii_v1(objdatetime,debug=0):
     df=get_days_twii_fin(objdatetime,20)
     if len(df)==0:
         return 
     if debug==1:
         print(lno(),df)
+    
     startdate=df.iloc[-1]['日期']
     enddate=df.iloc[0]['日期']
     #print(lno(),type(startdate),startdate,enddate)
@@ -538,7 +539,11 @@ def show_twii_v1(objdatetime,debug=1):
     df1['上櫃買賣力']=(df['otc_buy']/df['otc_sell']*100 ).astype('int').astype('str')+ '(' +df['otc_buy'].astype('int').astype('str')+ '/'+ df['otc_sell'].astype('int').astype('str')+')'
     df_3big=twse_big3.get_big3_df()
     df_3big['日期']=[date_sub2time64(x) for x in df_3big['日期'] ]
+    #print(lno(),df1.head(5))
+    #print(lno(),df_3big)
     df1=pd.merge(df1,df_3big)
+    #print(lno(),df1.head(5))
+    #raise
     df2=big3_fut_op.get_fut_op_big3_dfs_bydate(comm.time64_DateTime(df1.iloc[-1]['日期']),comm.time64_DateTime(df1.iloc[0]['日期']))
     
     df2['外資期貨']=df2['外期貨']+df2['外選擇權']
@@ -552,12 +557,13 @@ def show_twii_v1(objdatetime,debug=1):
     df2.drop('投選擇權', axis=1, inplace = True)
     df2.drop('自期貨', axis=1, inplace = True)
     df2.drop('自選擇權', axis=1, inplace = True)
-    print(lno(),df2)
+    #print(lno(),df2.head(5))
+    #print(lno(),df1.head(5))
     df1=pd.merge(df1,df2)
     #df1['外資(億)']=df1['外資'].astype(str)
     #df1['投信(億)']=df1['投信'].astype(str)
     #df1['自營商(億)']=df1['自營商'].astype(str)
-    
+       
     df1['外期貨']=df1['外資期貨'].astype(int).astype(str)
     df1['投期貨']=df1['投信期貨'].astype(int).astype(str)
     df1['自期貨']=df1['自營商期貨'].astype(int).astype(str)
@@ -567,9 +573,16 @@ def show_twii_v1(objdatetime,debug=1):
     #df1.drop('外資', axis=1, inplace = True)
     #df1.drop('投信', axis=1, inplace = True)
     #df1.drop('自營商', axis=1, inplace = True)
+    
+    #raise 
     df_big8=twse_big3.get_big8_df()
     df_big8['日期']=[date_slash2time64(x) for x in df_big8['日期'] ]
+    #print(lno(),df1.head(5))
+    #print(lno(),df_big8.head(5))
+    #raise 
     df1=pd.merge(df1,df_big8,how='left')
+    #print(lno(),df1.head(5))
+    #raise
     #df1['外資買超']=df['外資買超']
     df1['op OI']=df['op OI']
     df1['匯率']=df['匯率']
@@ -579,6 +592,7 @@ def show_twii_v1(objdatetime,debug=1):
 
     if debug==1:
         print(lno(),df1)
+     
     old_width = pd.get_option('display.max_colwidth')
     pd.set_option('display.max_colwidth', -1)
     check_dst_folder('day_report/%d%02d'%(objdatetime.year,objdatetime.month))
@@ -1028,5 +1042,5 @@ if __name__ == '__main__':
         check_twii_fin(startdate,regen=1)         
     else :    
         nowdatetime=datetime.strptime(sys.argv[1],'%Y%m%d')
-        show_twii_v1(nowdatetime)
+        show_twii_v1(nowdatetime,debug=1)
         
