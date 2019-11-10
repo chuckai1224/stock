@@ -48,7 +48,7 @@ def strip_dot(value):
         return int(new_value)
     else:
         return int(value)
-def down_stock_3big(startdate,enddate):
+def down_stock_3big(startdate,enddate,download=1):
     result=[]
     sr_list=[]
     dst_folder='csv/stock_big3'
@@ -136,7 +136,7 @@ def down_stock_3big(startdate,enddate):
             time.sleep(3)
         day=day+1
         nowdatetime = enddate - relativedelta(days=day)
-def down_stock_3big_otc(startdate,enddate):
+def down_stock_3big_otc(startdate,enddate,download=1):
     result=[]
     sr_list=[]
     dst_folder='csv/stock_big3'
@@ -180,9 +180,12 @@ def down_stock_3big_otc(startdate,enddate):
                     #print(lno(),dfs)
                     #"""
                     df=dfs[0]
-                    df.columns=['證券代號', '證券名稱', '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)', '投信買進股數', '投信賣出股數', '投信買賣超股數', '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)', '三大法人買賣超股數']
+                    df.columns=['證券代號', '證券名稱', 
+                                '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
+                                 '投信買進股數', '投信賣出股數', '投信買賣超股數', 
+                                 '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
+                                  '三大法人買賣超股數']
                     #"""
-                    
                 print(lno(),df.columns)
                 list=['證券代號','證券名稱','外陸資買進股數(不含外資自營商)','外陸資賣出股數(不含外資自營商)','外陸資買賣超股數(不含外資自營商)',
                 '外資自營商買進股數','外資自營商賣出股數','外資自營商買賣超股數',
@@ -199,12 +202,19 @@ def down_stock_3big_otc(startdate,enddate):
                     df['自營商買賣超股數(避險)']=0
                     df['自營商買賣超股數']=df['自營商買賣超股數(自行買賣)']
                     df['證券代號']= df['證券代號'].astype('str')
+                    df=df[list]
                 elif len(df.columns)==16:
-                    df.columns=['證券代號', '證券名稱', '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)', '投信買進股數', '投信賣出股數', '投信買賣超股數', '自營商買賣超股數','自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)','自營商買進股數(避險)','自營商賣出股數(避險)', '自營商買賣超股數(避險)', '三大法人買賣超股數']
+                    df.columns=['證券代號', '證券名稱', 
+                                '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
+                                '投信買進股數', '投信賣出股數', '投信買賣超股數',
+                                '自營商買賣超股數',
+                                '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
+                                '自營商買進股數(避險)','自營商賣出股數(避險)', '自營商買賣超股數(避險)', '三大法人買賣超股數']
                     df['外資自營商買進股數']=0
                     df['外資自營商賣出股數']=0
                     df['外資自營商買賣超股數']=0
                     df['證券代號']= df['證券代號'].astype('str')
+                    df=df[list]
                 else:
                     df.drop('外資及陸資-買進股數', axis=1, inplace = True)
                     df.drop('外資及陸資-賣出股數', axis=1, inplace = True)
@@ -265,7 +275,10 @@ def convert_K_stock(value):
     """
     return int(value/1000)
     
-def get_stock_3big(stock_id,date,num,flag='tse'):
+def get_stock_3big(stock_id,date,num,flag='tse',ver=1):
+    if ver==1:
+        sb3=stock_big3()
+        return sb3.get_df_by_id_date_num(stock_id,date,num)
     dst_folder='csv/stock_big3'
     #print(lno(),date)
     if comm.stock_is_otc(stock_id,date)==1:
@@ -314,10 +327,14 @@ def get_stock_3big(stock_id,date,num,flag='tse'):
     #print(lno(),df_out)
     return df_out
 
-def generate_stock_3big_pic(stock_no,enddate,outf):
+def generate_stock_3big_pic(stock_no,enddate,outf,ver=1):
     df=get_stock_3big(stock_no,enddate,5)
-    df['date']=[comm.date_sub2time64(x) for x in df['日期'] ] 
-    df=df.sort_values('date', ascending=True).reset_index(drop=True)    
+    if ver==1:
+        df=df.sort_values('日期', ascending=True).reset_index(drop=True)  
+        df['日期']= [x.strftime('%Y%m%d') for x in df['日期'] ]  
+    else:    
+        df['date']=[comm.date_sub2time64(x) for x in df['日期'] ] 
+        df=df.sort_values('date', ascending=True).reset_index(drop=True)    
     df_o=df[['日期','外資','投信','自營商']]
     index=df_o.index        
     bar_width = 0.3
@@ -347,7 +364,10 @@ def generate_stock_3big_pic(stock_no,enddate,outf):
     plt.clf()
     plt.close()  
  
-def get_stock_3big_all(date,flag='tse'):
+def get_stock_3big_all(date,flag='tse',ver=1):
+    if ver==1:
+        sb3=stock_big3()
+        return sb3.get_df_by_date(date)
     dst_folder='csv/stock_big3'
     #print(lno(),date)
     nowdate = date
@@ -368,75 +388,229 @@ class stock_big3:
         self.con = self.engine.connect()
         self.datafolder='csv/stock_big3'
         self.dtypes={0:str}
-    def download(self,date):
-        url='https://www.twse.com.tw/fund/T86?response=csv&date=%d%02d%02d&selectType=ALLBUT0999'%(int(date.year),int(date.month),int(date.day))
-        csv = requests.get(url).text
-        if csv.strip(): # 判斷csv是否為空檔案，若「不是」空檔案則條件為真
-            columns=range(0,19)
-            #print(lno(),columns)
-            df = pd.read_csv(StringIO(csv),encoding = 'utf-8',header=1,index_col=0,usecols=columns,dtype=self.dtypes, thousands=',' )
-            df=df.dropna(thresh=3)
-            df.index=[x.strip().replace('=', '').replace('\"','') for x in df.index ]
-            df.to_csv('test.csv',encoding='utf-8')
-            df['date']=date
+        self.columns=['證券代號','證券名稱', '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
+       '外資自營商買進股數', '外資自營商賣出股數', '外資自營商買賣超股數', '投信買進股數', '投信賣出股數', '投信買賣超股數',
+       '自營商買賣超股數', '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
+       '自營商買進股數(避險)', '自營商賣出股數(避險)', '自營商買賣超股數(避險)', '三大法人買賣超股數' ]
+    def download_(self,date,market,download=1):
+        if market=='tse':
+            url='https://www.twse.com.tw/fund/T86?response=csv&date=%d%02d%02d&selectType=ALLBUT0999'%(int(date.year),int(date.month),int(date.day))
+            htmlfile='%s/html/%s.html'%(self.datafolder,date.strftime('%Y%m%d'))
+        else:
+            changedate=datetime.strptime('20141201','%Y%m%d')
+            htmlfile='%s/html/%s_otc.html'%(self.datafolder,date.strftime('%Y%m%d'))
+            if date>=changedate:
+                url='https://www.tpex.org.tw/web/stock/3insti/daily_trade/3itrade_hedge_result.php?l=zh-tw&o=csv&se=EW&t=D&d=%d/%02d/%02d&s=0,asc,0'%(int(date.year)-1911,int(date.month),int(date.day))
+            else :    
+                url='https://www.tpex.org.tw/web/stock/3insti/daily_trade/3itrade_print.php?l=zh-tw&se=EW&t=D&d=%d/%02d/%02d&s=0,asc,0'%(int(date.year)-1911,int(date.month),int(date.day))                
+        if download==1:
+            response = requests.get(url)
+            if response.status_code == 200:
+                with open(htmlfile, 'wb') as file:
+                    for chunk in response:
+                        file.write(chunk)
+        else:
+            csv=htmlfile
+            
+        if not os.path.exists(htmlfile):
+            return
+        print(lno(),date)
+        try:
+            df = pd.read_csv(htmlfile,encoding = 'big5hkscs',header=1,dtype=self.dtypes, thousands=',' )
+            #print(lno(),len(df.columns))    
+            #df = pd.read_csv(htmlfile,encoding = 'big5hkscs',header=1,usecols=columns,dtype=self.dtypes, thousands=',' )
+        except:
+            filesize=os.path.getsize(htmlfile)
+            if  filesize<1024:
+                os.remove(htmlfile)
+                #print(lno(),"wrong file size", htmlfile)
+                return
+            else:
+                if market == 'otc' and date <= datetime(2014, 12, 1):
+                    dfs = pd.read_html(htmlfile)
+                    df=dfs[0].copy()
+                    #df.columns=['證券代號', '證券名稱', '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)', '投信買進股數', '投信賣出股數', '投信買賣超股數', '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)', '三大法人買賣超股數']
+                else :   
+                    print(lno(),"wrong xxx", market,htmlfile,filesize)
+                    df = pd.read_csv(htmlfile,encoding = 'big5hkscs',header=1,dtype=self.dtypes, thousands=',' )
+                    print(lno(),df.columns)
+                    print(lno(),len(df.columns))
+                    raise    
 
-            enddate=date+relativedelta(days=1)
-            table_name='stock_big3'
-            if table_name in self.engine.table_names():
-                cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,date,enddate)
-                df_query= pd.read_sql(cmd, con=self.con, parse_dates=['date'])
-                if len(df_query):
-                    print(lno(),"repeat",date)
-                    return
-                else:
-                    df.to_sql(name=table_name,  con=self.con, if_exists='append',  index= False,chunksize=10)
-                print(lno(),df)
-            else:    
-                df.to_sql(name=table_name, con=self.con, if_exists='append',  index= False,chunksize=10)
+        df=df.dropna(thresh=3)
+        df.dropna(axis=1,how='all',inplace=True)
+       
+        if market=='otc':
+            print(lno(),len(df.columns)) 
+            print(lno(),df.columns) 
+            if date < datetime(2014, 12, 1):
+                columns=['證券代號', '證券名稱', 
+                         '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)', 
+                         '投信買進股數', '投信賣出股數', '投信買賣超股數',
+                         '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數', '三大法人買賣超股數']
+            elif date < datetime(2018, 1, 15):
+                columns=['證券代號','證券名稱', 
+                            '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)', 
+                            '投信買進股數', '投信賣出股數', '投信買賣超股數', 
+                            '自營商買賣超股數',
+                            '自營商買進股數(自行買賣)','自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
+                            '自營商買進股數(避險)','自營商賣出股數(避險)','自營商買賣超股數(避險)', '三大法人買賣超股數']
+            else:
+                df.columns=['證券代號','證券名稱', 
+                        '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)',
+                        '外資自營商買進股數', '外資自營商賣出股數', '外資自營商買賣超股數',
+                        '外資及陸資-買進股數', '外資及陸資-賣出股數', '外資及陸資-買賣超股數', 
+                        '投信買進股數', '投信賣出股數', '投信買賣超股數',
+                        '自營商買進股數(自行買賣)', '自營商賣出股數(自行買賣)', '自營商買賣超股數(自行買賣)',
+                        '自營商買進股數(避險)', '自營商賣出股數(避險)', '自營商買賣超股數(避險)',
+                        '自營商-買進股數', '自營商-賣出股數','自營商買賣超股數',
+                         '三大法人買賣超股數' ]  
+                df=df[self.columns]  
+                columns=self.columns 
+                
+        else:  
+            print(lno(),len(df.columns)) 
+            print(lno(),df.columns)       
+            if date < datetime(2014, 12, 1):
+                
+                columns=['證券代號','證券名稱', 
+                            '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)', 
+                            '投信買進股數', '投信賣出股數', '投信買賣超股數', 
+                            '自營商買進股數(自行買賣)','自營商賣出股數(自行買賣)','自營商買賣超股數',
+                            '三大法人買賣超股數']
+            elif date < datetime(2017, 12, 18):
+                columns=['證券代號','證券名稱', 
+                            '外陸資買進股數(不含外資自營商)', '外陸資賣出股數(不含外資自營商)', '外陸資買賣超股數(不含外資自營商)', 
+                            '投信買進股數', '投信賣出股數', '投信買賣超股數',
+                            '自營商買賣超股數', 
+                            '自營商買進股數(自行買賣)','自營商賣出股數(自行買賣)','自營商買賣超股數(自行買賣)',
+                            '自營商買進股數(避險)', '自營商賣出股數(避險)', '自營商買賣超股數(避險)',
+                            '三大法人買賣超股數']
+            else:
+                columns=self.columns    
+                    
+        df.columns=columns        
+        df['date']=date
+        df['market']=market
+        df['證券代號']=[x.strip().replace('=', '').replace('\"','') for x in df['證券代號'] ]
+        enddate=date+relativedelta(days=1)
+        table_name=date.strftime('%Y%m%d')
+        if table_name in self.engine.table_names():
+            cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}" and market=="{}"'.format(table_name,date,enddate,market)
+            df_query= pd.read_sql(cmd, con=self.con, parse_dates=['date'])
+            if len(df_query):
+                print(lno(),"repeat",date)
+                return
+            else:
+                df.to_sql(name=table_name,  con=self.con, if_exists='append',  index= False,chunksize=10)
+            
+        else:    
+            df.to_sql(name=table_name, con=self.con, if_exists='append',  index= False,chunksize=10)
            
-        pass
-    def csv2sql_all(self):
-        """
-        df_fini = pd.DataFrame(columns=['買進金額', '賣出金額', '買賣差額'], dtype=np.int64) # 外資數據
-        df_fund = pd.DataFrame(columns=['買進金額', '賣出金額', '買賣差額'], dtype=np.int64) # 投信數據
-        df_prop_hedge = pd.DataFrame(columns=['買進金額', '賣出金額', '買賣差額'], dtype=np.int64) # 自營商(避險)數據
-        df_prop_self = pd.DataFrame(columns=['買進金額', '賣出金額', '買賣差額'], dtype=np.int64) # 自營商(自行買賣)數據
-        df_fini_prop = pd.DataFrame(columns=['買進金額', '賣出金額', '買賣差額'], dtype=np.int64) # 外資自營商數據
-        df_sum = pd.DataFrame(columns=['買進金額', '賣出金額', '買賣差額'], dtype=np.int64) # 合計數據  
-        """
-        pass
-def test_sql(date):
-    ss=stock_big3()
-    ss.download(date)
+        
+    def download(self,date,download=1):
+        self.download_(date,'tse',download)
+        self.download_(date,'otc',download)
+        if download==1:
+            time.sleep(3)
+    def download_by_dates(self,startdate,enddate,download=1):
+        nowdate=startdate
+        day=0
+        while nowdate<=enddate:
+            nowdate=startdate+relativedelta(days=day)
+            self.download(nowdate,download=0)
+            day=day+1             
+    def get_df_by_date(self,date):
+        table_name=date.strftime('%Y%m%d')
+        cmd='SELECT * FROM "{}" '.format(table_name)
+        df= pd.read_sql(cmd, con=self.con, parse_dates=['date'])
+        return df
+    def get_df_by_id_date(self,stock_id,date):
+        table_name=date.strftime('%Y%m%d')
+        cmd='SELECT * FROM "{}" WHERE "證券代號"=="{}" '.format(table_name,stock_id)
+        df= pd.read_sql(cmd, con=self.con, parse_dates=['date'])
+        #print(lno(),df)
+        return df
+    def get_df_by_id_date_num(self,stock_id,date,num):
+        day=0
+        rec=0
+        table_names = self.engine.table_names()
+        df_fin=pd.DataFrame()
+        while   rec<num :
+            nowdate = date - relativedelta(days=day)
+            str_date=nowdate.strftime('%Y%m%d')
+            if str_date in table_names:
+                rec=rec+1
+                df=self.get_df_by_id_date(stock_id,nowdate)
+                if len(df.index):
+                    df_fin=pd.concat([df_fin,df[['date','外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']]])
+            day=day+1
+            if day>num*100:
+                break
+        df_fin.columns=['日期','外資','投信','自營商','三大法人買賣超']
+        df_fin['外資']=df_fin['外資']/1000
+        df_fin['投信']=df_fin['投信']/1000
+        df_fin['自營商']=df_fin['自營商']/1000
+        df_fin['三大法人買賣超']=df_fin['三大法人買賣超']/1000
+        #print(lno(),df_fin)
+        return df_fin
 
+              
+   
+     
+def test_sql(date,download):
+    ss=stock_big3()
+    #print(lno(),date)
+    #ss.download(date,download)
+    #"""
+    #df=get_stock_3big_all(date,'tse')
+    #print(lno(),df)
+    def check_data(r):
+        debug=0
+        print(lno(),date,r['證券代號'])
+        d1=ss.get_by_stock_id(r['證券代號'],date) 
+        if len(d1.index)==1:
+            #if float(r['外陸資買賣超股數(不含外資自營商)'])!=d1.iloc[0]['外陸資買賣超股數(不含外資自營商)']:
+            #    debug=1
+            if float(r['投信買賣超股數'])!=d1.iloc[0]['投信買賣超股數']:
+                debug=1
+        if debug==1:        
+            print(lno(),date)
+            #print(lno(),float(r['外陸資買賣超股數(不含外資自營商)']),d1.iloc[0]['外陸資買賣超股數(不含外資自營商)'])
+            print(lno(),float(r['投信買賣超股數']),d1.iloc[0]['投信買賣超股數'])
+            print(lno(),d1[['外陸資買賣超股數(不含外資自營商)','投信買賣超股數']])
+            raise
+    #df.apply(check_data,axis=1)
+    #"""
+    df=get_stock_3big_all(date,'otc')
+    if len(df):
+        print(lno(),df.columns)
+        print(lno(),df[['證券代號','投信買賣超股數']])
+    #raise
+    df.apply(check_data,axis=1)
+    
+   
 if __name__ == '__main__':
     #print (lno(),sys.path[0])
-    download=1
     #get_cur_twii_list(datetime.today())
+    sb3=stock_big3()
     if len(sys.argv)==1:
         startdate=stock_comm.get_date()
         enddate=stock_comm.get_date()
-        down_stock_3big(startdate,enddate)
-        down_stock_3big_otc(startdate,enddate)
-        #generate_twse_3big(startdate,enddate)
+        sb3.download_by_dates(startdate,enddate)
+        #down_stock_3big(startdate,enddate)
+        #down_stock_3big_otc(startdate,enddate)
 
     elif sys.argv[1]=='-d' :
-        
         #print (lno(),len(sys.argv))
         if len(sys.argv)==4 :
-
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            down_stock_3big(startdate,enddate)
-            #down_stock_3big_otc(startdate,enddate)
-            #generate_twse_3big(startdate,enddate) 
-
+            sb3.download_by_dates(startdate,enddate)
+            #down_stock_3big(startdate,enddate)
+            #down_stock_3big_otc(startdate,enddate,download=0)
         else :
-            
             print(lno(),'fun -d startdate enddate')
-     
-            
-
     elif sys.argv[1]=='-g' :
         print (lno(),len(sys.argv))
         if len(sys.argv)==4 :
@@ -447,7 +621,7 @@ if __name__ == '__main__':
             
             #df['外資buy']=df['外資buy'].astype('float64')            
             
-            print(lno(),df.loc[:,'外資'])
+            print(lno(),df[['外資','投信','自營商']])
             print(lno(),df.loc[:,'外資'].values.tolist())
             
             
@@ -458,11 +632,24 @@ if __name__ == '__main__':
         stock_no=sys.argv[2]
         enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
         generate_stock_3big_pic(stock_no,enddate,'tes1.png')
-    elif sys.argv[1]=='sql' :        
-        enddate=datetime.strptime(sys.argv[2],'%Y%m%d')
-        test_sql(enddate)    
+    elif sys.argv[1]=='tt' :  
+        try:
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')      
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+        except:
+            pass  
+        stock_id='2308'
+        date=startdate
+        num=5
+        df=sb3.get_df_by_id_date_num(stock_id,date,num)  
+        print(lno(),df)
+        df=sb3.get_df_by_date(date)  
+        print(lno(),df)
+       
+        
         #print(lno(),df)
-    elif sys.argv[1]=='-t' :        
+    elif sys.argv[1]=='-t' : 
+        ##TODO: need to regen again for wrong data 自營商       
         startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
         try:
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
@@ -472,8 +659,8 @@ if __name__ == '__main__':
         day=0
         while nowdate<=enddate:
             nowdate=startdate+relativedelta(days=day)
-            test_sql(nowdate)
-            time.sleep(3)
+            test_sql(nowdate,download=0)
+            #time.sleep(3)
             day=day+1     
         
     else:   

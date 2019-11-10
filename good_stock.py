@@ -490,7 +490,7 @@ class findstock:
                     #print(lno(),df_query)   
                     pass 
             else:
-                df.to_sql(name=self.strategy, con=con, if_exists='append', index=False,chunksize=10)    
+                df.to_sql(name=self.strategy, con=self.con, if_exists='append', index=False,chunksize=10)    
             #print(lno(),date_str)  
             #df1 = pd.read_sql('select * from "{}"'.format(date_str), con=con)  
             #print(lno(),df1)  
@@ -509,19 +509,7 @@ class findstock:
     """
     ## 均線糾結 https://blog.csdn.net/luoganttcc/article/details/80159025
     ## part2 https://xstrader.net/%E6%95%A3%E6%88%B6%E7%9A%8450%E9%81%93%E9%9B%A3%E9%A1%8C%E7%8B%97%E5%B0%BE%E7%89%88%E4%B9%8B4%E5%A6%82%E4%BD%95%E5%88%A4%E6%96%B7%E4%B8%80%E6%AA%94%E8%82%A1%E7%A5%A8%E5%8F%AF%E4%BB%A5%E9%95%B7/
-    """
-    shortaverage = average(close,s1);
-    midaverage = average(close,s2);
-    Longaverage = average(close,s3);
-    value1= absvalue(shortaverage -midaverage);
-    value2= absvalue(midaverage -Longaverage);
-    value3= absvalue(Longaverage -shortaverage);
-    value4= maxlist(value1,value2,value3);
-    if value4*100 < Percent*Close
-    and linearregangle(value4,5)<10
-    then count=count+1;
-    end;
-    """ 
+    
     ##TODO Q指標 https://xstrader.net/%E7%A8%8B%E5%BC%8F%E4%BA%A4%E6%98%93%E5%9C%A8%E5%9F%BA%E9%87%91%E6%8A%95%E8%B3%87%E4%B8%8A%E7%9A%84%E6%87%89%E7%94%A8%E4%B9%8B%E4%BA%8Cq%E6%8C%87%E6%A8%99/  
     def analy(self,method,startdate,enddate):
         tStart = time.time()
@@ -653,49 +641,31 @@ class findstock:
         self.rundate=rundate
         markets=['tse','otc']
         tStart = time.time()
-        out=[]
-        for market in markets:
-            if market=='tse':
-                d=self.tse.get_df(self.rundate)
-            else:
-                d=self.otc.get_df(self.rundate)
-                #print(lno(),out)
-            def get_price_df(r):
-                if comm.check_stock_id(r.stock_id)==False:
-                    return
-                print(lno(),r.stock_id,r.date)
-                df=self.stk.get_df_by_enddate_num(r.stock_id,self.rundate,120)
-                res=fun(df)
-                if res>=1:
-                    out.append([self.rundate,market,r.stock_id,'%s'%(table_name),res])  
-            d.apply(get_price_df,axis=1)    
-        print(lno(),out)    
-        raise    
-        #columns=['date','market','stock_id','買進信號','相似度']
-        columns=self.columns
-        df=pd.DataFrame(self.out, columns=columns)
+        d1=self.tse.get_df_date_parse(self.rundate)
+        d1['market']='tse'
+        d2=self.otc.get_df_date_parse(self.rundate)
+        d2['market']='otc'
+        d=pd.concat([d1,d2])
+        if len(d.index)==0:
+            return 
+        d['result']=d.apply(fun,axis=1)  
+        df=d.dropna()[['date','market','stock_id','result']]  
+        print(lno(), df)  
         if len(df):
-            engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
-            con = engine.connect()
-            enddate= self.rundate + relativedelta(days=1)    
             #print(lno(),date_str,df['stock_id'].values.tolist())
-            date_str=self.rundate.strftime('%Y%m%d')
             table_names = self.engine.table_names() 
-            if self.strategy in table_names:
-                cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(self.strategy,self.rundate,enddate)
+            if table_name in table_names:
+                cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,rundate,rundate+relativedelta(days=1)  )
                 df_query= pd.read_sql(cmd, con=self.con)
                 if len(df_query.index)==0:  
-                    print(lno(),date_str)      
-                    df.to_sql(name=self.strategy, con=self.con, if_exists='append', index=False,chunksize=10)
+                    print(lno(),rundate)      
+                    df.to_sql(name=table_name, con=self.con, if_exists='append', index=False,chunksize=10)
                     #raise
                 else :
                     #print(lno(),df_query)   
                     pass 
             else:
-                df.to_sql(name=self.strategy, con=con, if_exists='append', index=False,chunksize=10)    
-            #print(lno(),date_str)  
-            #df1 = pd.read_sql('select * from "{}"'.format(date_str), con=con)  
-            #print(lno(),df1)  
+                df.to_sql(name=table_name, con=self.con, if_exists='append', index=False,chunksize=10)    
         tEnd = time.time()
         print ("It cost %.3f sec" % (tEnd - tStart))   
     
@@ -779,7 +749,8 @@ def find_stock_analy(method,startdate,enddate):
     stk=comm.stock_data()
     con = engine.connect() 
     
-    table_name='verylongred_v1'
+    #table_name='verylongred_v1'
+    table_name='find_point_K'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     df_fin=pd.DataFrame()
@@ -824,7 +795,7 @@ def find_stock_ma_tangled(method,startdate,enddate):
     engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
     stk=comm.stock_data()
     con = engine.connect() 
-    ##TODO get 盤整箱
+    ##TODO find_stock_ma_tangled 均線糾結
     table_name='verylongred_v1'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
@@ -903,6 +874,62 @@ def find_ma1_cross_ma5(df):
     sys.exit()   
     return 1
     pass
+def red_K_ratio_calc(r):
+    try:
+        pre_close=r.close-r['diff']
+        if r.open >pre_close:
+            red_K_pwr= (r.close -pre_close)/pre_close
+        else :
+            red_K_pwr= (r.close -r.open)/pre_close    
+        return red_K_pwr 
+    except :
+        return np.nan
+def find_point_K(r):
+    ## TODO: 關鍵 K 
+    # K線力道 60日前10
+    
+    global g_stk
+    try :
+        cash=float(r.cash)
+        
+        
+        if cash<3000000:
+            return 
+        open=float(r.open)
+        close=float(r.close)
+        if open>=close:
+            return
+        diff=float(r['diff'])
+        pre_close=close-diff
+        if open >pre_close:
+            red_K_ratio= (close -pre_close)/pre_close
+        else :
+            red_K_ratio= (close -open)/pre_close
+        if red_K_ratio<=0.03:
+            return 
+    except:
+        print(lno(),r)    
+        if type(r['diff'])==str and '除' in r['diff'] :
+            return
+        if type(r.open)==str and '--' in r.open:
+            return
+        
+        raise
+    #print(lno(),red_K_ratio,r.stock_id,r.date)
+    if g_stk==None:
+        g_stk=comm.stock_data()
+    stk=g_stk
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,122)
+    #print(lno(),df1)
+    if len(df1)<90:
+        return
+    df1['red_K_ratio']=df1.apply(red_K_ratio_calc, axis=1)
+    top10=df1.sort_values(by='red_K_ratio',ascending=False).iloc[10]['red_K_ratio']
+    #print(lno(),df1,top10)
+    if df1.iloc[-1]['red_K_ratio']>=top10:
+        return 1
+    return 
+
 def findstock_test(startdate,enddate):
     fs=findstock()
     nowdate=enddate
@@ -910,7 +937,7 @@ def findstock_test(startdate,enddate):
     while   nowdate>=startdate :
         nowdate = enddate - relativedelta(days=day)
         print(lno(),nowdate)
-        fs.run_fun(nowdate,find_ma1_cross_ma5,'test1')
+        fs.run_fun(nowdate,find_point_K,'find_point_K')
         day=day+1 
 
 
@@ -933,11 +960,122 @@ def pool_map(function_name, df, processes = multiprocessing.cpu_count()):
     return multiprocessing.Pool(processes).map(function_name, df_split)
 g_stk = None
 g_engine=None
+g_con=None
+def init_sql():
+    global g_stk,g_engine,g_con
+    if g_stk==None:
+        print(lno())
+        g_stk=comm.stock_data()
+    if g_engine==None:
+        g_engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)  
+    if g_con==None: 
+        g_con = g_engine.connect()    
+    return   g_stk,g_engine,g_con
+ 
+ 
+def vol_ratio(r):
+    #print(lno(),r)
+    if platform.system().upper()=='LINUX':
+        stk=comm.stock_data()
+    else:
+        stk=g_stk   
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
+    #print(lno(),r.date,df1)
+    try :
+        v_ratio=df1.iloc[-1]['vol']/df1.iloc[-2]['vol']
+    except:
+        print(lno(),"some thing wrong",df1)
+        #raise
+        return np.nan     
+    return v_ratio        
+def gen_analy_data(startdate,enddate,table_name,modes):
+    stk,engine,con=init_sql()
+    print(lno(),startdate,enddate,table_name,modes)
+    for i in modes:
+        print(lno(),i.__name__)
+    raise
+    cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
+    df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
 
+    print(lno(),len(df))
+    #"""
+    tStart = time.time()
+    for mode in modes:
+        pass
+    if mode=='upper_shadow':
+        def upper_shadow(r):
+            if platform.system().upper()=='LINUX':
+                stk=comm.stock_data()
+            else:
+                stk=g_stk    
+            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
+            #print(lno(),r.date,df1)
+            upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
+            real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
+            if real_body==0:
+                return np.nan     
+            return upper_shadow_val/real_body
+        df['上影線比例']=df_apply_fun(df,upper_shadow)    
+        cond=[["市值(億)",100],['上影線比例',0.3]]
+    elif mode=='over_prev_high':
+        def over_prev_high(r):
+            #print(lno(),r)
+            if platform.system().upper()=='LINUX':
+                stk=comm.stock_data()
+            else:
+                stk=g_stk    
+            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
+            #print(lno(),r.date,df1)
+            try :
+                over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
+            except:
+                print(lno(),"some thing wrong",df1)
+                #raise
+                return np.nan     
+            return over_phigh
+        df['過昨日高']=df_apply_fun(df,over_prev_high)    
+        cond=[["市值(億)",100],['過昨日高',0]]
+    elif mode=='vol_ratio':
+        def vol_ratio(r):
+            #print(lno(),r)
+            if platform.system().upper()=='LINUX':
+                stk=comm.stock_data()
+            else:
+                stk=g_stk   
+            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
+            #print(lno(),r.date,df1)
+            try :
+                v_ratio=df1.iloc[-1]['vol']/df1.iloc[-2]['vol']
+            except:
+                print(lno(),"some thing wrong",df1)
+                #raise
+                return np.nan     
+            return v_ratio
+        df['量增比例']=df_apply_fun(df,vol_ratio)    
+        cond=[["市值(億)",100],['量增比例',8,3,1]]    
+    else:
+        raise    
+    tEnd = time.time()
+    print ("It cost %.3f sec" % (tEnd - tStart))         
+    
+    #df.to_sql(name='verylongred_v1', con=con, if_exists='replace', index=False,chunksize=10)
+    df_fin=pd.DataFrame()
+    df_fin=gen_final_df(df_fin,'全部',df)
+    df_fin=gen_cond_fin_df(df_fin,cond,df)   
+    #cmp= df_fin.iloc[0]['5日勝率']
+    #df_fin['5日勝率'] = df_fin['5日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x) 
+    #df_fin.style.applymap(show,subset=['5日勝率'])
+    
+    print(lno(),df_fin)
+    pass
 def longred_analy_mode(startdate,enddate,mode):
     
-   
-    g_stk=comm.stock_data()
+    global g_stk,g_engine
+    if g_stk==None:
+        g_stk=comm.stock_data()
+    if g_engine==None:
+        g_engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)    
+        
     con = g_engine.connect() 
     table_name='verylongred_v1'
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
@@ -1010,9 +1148,7 @@ def longred_analy_mode(startdate,enddate,mode):
     #df_fin['5日勝率'] = df_fin['5日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x) 
     #df_fin.style.applymap(show,subset=['5日勝率'])
     
-    print(lno(),df_fin)
-    pass
-    
+    print(lno(),df_fin)    
 """
 我永遠都在尋找四種股票
 1.市值接近歷史低檔區的景氣循環股
@@ -1026,14 +1162,12 @@ def longred_analy_mode(startdate,enddate,mode):
 1. 4 待考慮
 參考 投信 基金績效 一年前10名 10大持股 新增 或是 持有 最近跌10% 投信開始買進
 """ 
+
 if __name__ == '__main__':
-    global g_stk
-    global g_engine
-    ##TODO begin test
-    #engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
-    #con = engine.connect() 
-    g_stk=comm.stock_data()
-    g_engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    #global g_stk
+    #global g_engine
+    #g_stk=comm.stock_data()
+    #g_engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
     
     if len(sys.argv)==1:
         startdate=stock_comm.get_date()
@@ -1151,13 +1285,20 @@ if __name__ == '__main__':
             longred_analy_mode(startdate,enddate,method)    
     elif sys.argv[1]=='g6' :
         if len(sys.argv)==4 :
-            ## TODO g5 長紅K 量增比例
+            ## TODO g6 長紅K 量增比例
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             method='vol_ratio'
             longred_analy_mode(startdate,enddate,method)    
 
-                           
+    elif sys.argv[1]=='gg' :
+        if len(sys.argv)==4 :
+            ## TODO gg gen_analy_data
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+            method=[vol_ratio]
+            table_name='find_point_K'
+            gen_analy_data(startdate,enddate,table_name,method)                        
     elif sys.argv[1]=='r' :
         if len(sys.argv)==4 :
             ## TODO r report all 分析 大小市值 斜率

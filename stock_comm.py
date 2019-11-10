@@ -787,6 +787,19 @@ class exchange_data:
             return df
         except:
             return pd.DataFrame()
+    def get_df_date_parse(self,selday):   
+        #print(lno(),self.stock_id) 
+        #table_name=(selday.strftime('%Y%m%d'))
+        #table_names = self.engine.table_names() # 取得資料庫內全部Tables的名稱
+        #print(lno(),table_names)  
+        #if table_name in table_names:
+        try:
+            df = pd.read_sql('select * from "{}"'.format(selday.strftime('%Y%m%d')), con=self.con, parse_dates=['date'])
+            #df=df.replace('-',np.NaN)
+            #print(lno(),self.df)
+            return df
+        except:
+            return pd.DataFrame()    
     def close(self):
         self.con.close()
 def exchange2sql(startdate,enddate):
@@ -952,9 +965,12 @@ class stock_data:
     def get_df_by_enddate_num(self,stock_id,date,num):
         try:
             #df = pd.read_sql('select * from "{}" where date < "{}" and date >= "{}"'.format(stock_id,date,date1), con=self.con,index_col='date', parse_dates=['date'])
-            
+            #print(lno(),stock_id,date,num)
+            #print(lno(),type(date))
             stardate=date- relativedelta(days=num*2) 
+            #print(lno(),stock_id,date,num)
             cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}" '.format(stock_id,stardate,date+relativedelta(days=1))
+            #print(lno(),cmd)
             #cmd='SELECT * FROM "{}" WHERE date <= "{}" ORDER BY "date" DESC limit {} '.format(stock_id,date,num)
             df = pd.read_sql(cmd, con=self.con, parse_dates=['date'])
             #df=df.sort_values(by=['date'], ascending=True).reset_index(drop=True)
