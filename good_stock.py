@@ -942,9 +942,6 @@ def findstock_test(startdate,enddate):
 
 
 
-def call_apply_upper_shadow(df):
-    return df.apply(upper_shadow, axis=1)  
-
 def df_apply_fun(df,func):
     if platform.system().upper()=='LINUX':    
         pandarallel.initialize()
@@ -972,6 +969,7 @@ def init_sql():
         g_con = g_engine.connect()    
     return   g_stk,g_engine,g_con
  
+
  
 def vol_ratio(r):
     #print(lno(),r)
@@ -987,15 +985,45 @@ def vol_ratio(r):
         print(lno(),"some thing wrong",df1)
         #raise
         return np.nan     
-    return v_ratio        
-def gen_analy_data(startdate,enddate,table_name,modes):
+    return v_ratio
+def upper_shadow(r):
+    if platform.system().upper()=='LINUX':
+        stk=comm.stock_data()
+    else:
+        stk=g_stk    
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
+    #print(lno(),r.date,df1)
+    upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
+    real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
+    if real_body==0:
+        return np.nan     
+    return upper_shadow_val/real_body    
+def over_prev_high(r):
+    #print(lno(),r)
+    if platform.system().upper()=='LINUX':
+        stk=comm.stock_data()
+    else:
+        stk=g_stk    
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
+    #print(lno(),r.date,df1)
+    try :
+        over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
+    except:
+        print(lno(),"some thing wrong",df1)
+        #raise
+        return np.nan     
+    return over_phigh
+def gen_analy_data(startdate,enddate,table_name,methods):
     stk,engine,con=init_sql()
-    print(lno(),startdate,enddate,table_name,modes)
-    for i in modes:
-        print(lno(),i.__name__)
-    raise
+    print(lno(),startdate,enddate,table_name,methods)
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}"'.format(table_name,startdate,enddate+relativedelta(days=1))
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
+    for func in methods:
+        print(lno(),func.__name__)
+        df[func.__name__]=df_apply_fun(df,func)    
+
+    raise
+    
 
     print(lno(),len(df))
     #"""
