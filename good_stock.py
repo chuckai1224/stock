@@ -941,12 +941,15 @@ def findstock_test(startdate,enddate):
         day=day+1 
 
 
-
+multitask=0
 def df_apply_fun(df,func):
-    if platform.system().upper()=='LINUX':    
+    global multitask
+    if platform.system().upper()=='LINUX': 
+        multitask=1   
         pandarallel.initialize()
         return df.parallel_apply(func,axis=1)
     else:
+        multitask=0   
         return df.apply(func, axis=1)      
 def pool_map(function_name, df, processes = multiprocessing.cpu_count()):
     if platform.system().upper()=='LINUX':
@@ -969,50 +972,70 @@ def init_sql():
         g_con = g_engine.connect()    
     return   g_stk,g_engine,g_con
  
-
- 
-def vol_ratio(r):
-    #print(lno(),r)
-    if platform.system().upper()=='LINUX':
+def get_stock_data():
+    global g_stk
+    if multitask==1:
         stk=comm.stock_data()
     else:
-        stk=g_stk   
+        if g_stk==None:
+            print(lno(),'111')
+            g_stk=comm.stock_data()
+        stk=g_stk
+    return stk
+g_tdcc=None
+def get_tdcc_dist():
+    global g_tdcc
+    if multitask==1:
+        tdcc=tdcc_dist.tdcc_dist()
+        return tdcc
+    else:
+        if g_tdcc==None:
+            g_tdcc=tdcc_dist.tdcc_dist()
+        return g_tdcc 
+
+def mv5_vol_ratio(r):
+    stk=get_stock_data()
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
-    #print(lno(),r.date,df1)
     try :
-        v_ratio=df1.iloc[-1]['vol']/df1.iloc[-2]['vol']
+        df1['MV5'] = talib.MA(df1.vol,5)
+        v_ratio=df1.iloc[-1]['vol']/df1.iloc[-1]['MV5']
     except:
         print(lno(),"some thing wrong",df1)
         #raise
         return np.nan     
     return v_ratio
 def upper_shadow(r):
-    if platform.system().upper()=='LINUX':
-        stk=comm.stock_data()
-    else:
-        stk=g_stk    
+    stk=get_stock_data()   
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
     #print(lno(),r.date,df1)
-    upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
-    real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
-    if real_body==0:
-        return np.nan     
-    return upper_shadow_val/real_body    
+    try:
+        upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
+        real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
+        return upper_shadow_val/real_body
+    except:
+        return np.nan    
 def over_prev_high(r):
-    #print(lno(),r)
-    if platform.system().upper()=='LINUX':
-        stk=comm.stock_data()
-    else:
-        stk=g_stk    
+    stk=get_stock_data() 
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
     #print(lno(),r.date,df1)
     try :
         over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
     except:
         print(lno(),"some thing wrong",df1)
-        #raise
         return np.nan     
     return over_phigh
+def market_value(r):
+    tdcc=get_tdcc_dist()
+    stk=get_stock_data() 
+    try:
+        total_stock_num=tdcc.get_total_stock_num(r.stock_id,r.date)
+        df=stk.get_df_by_startdate_enddate(r.stock_id,r.date,r.date+relativedelta(days=1))
+        close=df.iloc[0]['close']
+        #print(lno(),total_stock_num,r.stock_id,close,r.date)
+        return total_stock_num*close
+    except:
+        return np.nan
+    
 def gen_analy_data(startdate,enddate,table_name,methods):
     stk,engine,con=init_sql()
     print(lno(),startdate,enddate,table_name,methods)
@@ -1021,7 +1044,7 @@ def gen_analy_data(startdate,enddate,table_name,methods):
     for func in methods:
         print(lno(),func.__name__)
         df[func.__name__]=df_apply_fun(df,func)    
-
+    print(lno(),df)
     raise
     
 
@@ -1324,7 +1347,7 @@ if __name__ == '__main__':
             ## TODO gg gen_analy_data
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            method=[vol_ratio]
+            method=[mv5_vol_ratio,market_value]
             table_name='find_point_K'
             gen_analy_data(startdate,enddate,table_name,method)                        
     elif sys.argv[1]=='r' :
