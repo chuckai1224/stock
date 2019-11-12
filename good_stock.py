@@ -1024,18 +1024,91 @@ def over_prev_high(r):
         print(lno(),"some thing wrong",df1)
         return np.nan     
     return over_phigh
-def market_value(r):
-    tdcc=get_tdcc_dist()
-    stk=get_stock_data() 
+def ma_tangled_day(r):
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date-relativedelta(days=1),120)
+    ma_list = [5,10,20]
+    for ma in ma_list:
+        df1['MA_' + str(ma)] = talib.MA(df1.close,ma)
+    def calc_sizeway(r):
+        max_value=max(r.MA_5,r.MA_10,r.MA_20)
+        min_value=min(r.MA_5,r.MA_10,r.MA_20)
+        if min_value==0:
+            return np.nan
+        return (max_value-min_value)/min_value*100
+    sideway=df1.apply(calc_sizeway,axis=1)
+    rev_sideway=sideway[::-1]
+    cnt=0
+    for i in rev_sideway:
+        if i<=0.5:
+            cnt=cnt+1
+            continue
+        break
+    if abs(cnt)>=5 :
+        #print(lno(),r.stock_id,r.date,tmp)    
+        #kline.show_stock_kline_pic(r.stock_id,r.date,120)
+        pass
+    return cnt
+
+def get_analy_1(r):
+    date=r.date
+    stock_id=r.stock_id
+    stk=get_stock_data()
+    tdcc=get_tdcc_dist() 
+    total_stock_nums=tdcc.get_total_stock_num(r.stock_id,r.date)
+    df1=stk.get_df_by_enddate_num(stock_id,date-relativedelta(days=1),120)
+    ma_list = [5,21,89]
+    for ma in ma_list:
+        df1['MA_' + str(ma)] = df1['close'].rolling(window=ma,center=False,axis=0).mean()
+
+    ma5_angle=np.nan    
+    ma21_angle=np.nan    
+    ma89_angle=np.nan    
+    datanum=len(df1.index)    
     try:
-        total_stock_num=tdcc.get_total_stock_num(r.stock_id,r.date)
-        df=stk.get_df_by_startdate_enddate(r.stock_id,r.date,r.date+relativedelta(days=1))
-        close=df.iloc[0]['close']
-        #print(lno(),total_stock_num,r.stock_id,close,r.date)
-        return total_stock_num*close
+        if datanum>=6:
+            ma5_angle=talib.LINEARREG_ANGLE(df1['MA_5'].values,2)[-1]    
+        if datanum>=22:
+            ma21_angle=talib.LINEARREG_ANGLE(df1['MA_21'].values,2)[-1]    
+        if datanum>=90:
+            ma89_angle=talib.LINEARREG_ANGLE(df1['MA_89'].values,2)[-1]   
     except:
-        return np.nan
-    
+        print(lno(),stock_id)
+        print(lno(),df1.close)
+
+    #print(lno(),ma5_angle,ma21_angle,ma89_angle)
+    #raise
+    edate= date + relativedelta(days=100)  
+    df0=stk.get_df_by_startdate_enddate(stock_id,date,edate )
+    #print(lno(),df0.close)
+    buy=np.nan
+    day5=np.nan
+    day20=np.nan
+    day60=np.nan
+    datanum=len(df0.index)
+    if datanum==0:
+        return
+    if datanum>=2:
+        buy=df0.at[1,'open']
+    if datanum>=6 and buy!=0:
+        sell=df0.at[5,'close']
+        if sell!=0:
+            day5=cm1.calc_profit(buy,sell) 
+    if datanum>=21 and buy!=0:
+        sell=df0.at[20,'close']
+        if sell!=0:
+            day20=cm1.calc_profit(buy,sell) 
+    if datanum>=61 and buy!=0 :
+        sell=df0.at[60,'close']
+        if sell!=0:
+            day60=cm1.calc_profit(buy,sell) 
+    if datanum>=1:
+        value=int(total_stock_nums*df0.at[0,'close']/100000000)
+    else:
+        value=np.nan    
+    #print(lno(),day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle)    
+    return day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle
+        
+            
 def gen_analy_data(startdate,enddate,table_name,methods):
     stk,engine,con=init_sql()
     print(lno(),startdate,enddate,table_name,methods)
@@ -1043,82 +1116,13 @@ def gen_analy_data(startdate,enddate,table_name,methods):
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     for func in methods:
         print(lno(),func.__name__)
-        df[func.__name__]=df_apply_fun(df,func)    
+        if func.__name__='get_analy_1':
+            df[['day5','day20','day60','市值(億)','MA5(角度)','MA21(角度)','MA89(角度)']]=df.apply(get_analy_1,axis=1,result_type="expand")
+        else:    
+            df[func.__name__]=df_apply_fun(df,func)    
     print(lno(),df)
     raise
-    
-
-    print(lno(),len(df))
-    #"""
-    tStart = time.time()
-    for mode in modes:
-        pass
-    if mode=='upper_shadow':
-        def upper_shadow(r):
-            if platform.system().upper()=='LINUX':
-                stk=comm.stock_data()
-            else:
-                stk=g_stk    
-            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,1)
-            #print(lno(),r.date,df1)
-            upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
-            real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
-            if real_body==0:
-                return np.nan     
-            return upper_shadow_val/real_body
-        df['上影線比例']=df_apply_fun(df,upper_shadow)    
-        cond=[["市值(億)",100],['上影線比例',0.3]]
-    elif mode=='over_prev_high':
-        def over_prev_high(r):
-            #print(lno(),r)
-            if platform.system().upper()=='LINUX':
-                stk=comm.stock_data()
-            else:
-                stk=g_stk    
-            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
-            #print(lno(),r.date,df1)
-            try :
-                over_phigh=df1.iloc[-1]['close']-df1.iloc[-2]['high']
-            except:
-                print(lno(),"some thing wrong",df1)
-                #raise
-                return np.nan     
-            return over_phigh
-        df['過昨日高']=df_apply_fun(df,over_prev_high)    
-        cond=[["市值(億)",100],['過昨日高',0]]
-    elif mode=='vol_ratio':
-        def vol_ratio(r):
-            #print(lno(),r)
-            if platform.system().upper()=='LINUX':
-                stk=comm.stock_data()
-            else:
-                stk=g_stk   
-            df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
-            #print(lno(),r.date,df1)
-            try :
-                v_ratio=df1.iloc[-1]['vol']/df1.iloc[-2]['vol']
-            except:
-                print(lno(),"some thing wrong",df1)
-                #raise
-                return np.nan     
-            return v_ratio
-        df['量增比例']=df_apply_fun(df,vol_ratio)    
-        cond=[["市值(億)",100],['量增比例',8,3,1]]    
-    else:
-        raise    
-    tEnd = time.time()
-    print ("It cost %.3f sec" % (tEnd - tStart))         
-    
-    #df.to_sql(name='verylongred_v1', con=con, if_exists='replace', index=False,chunksize=10)
-    df_fin=pd.DataFrame()
-    df_fin=gen_final_df(df_fin,'全部',df)
-    df_fin=gen_cond_fin_df(df_fin,cond,df)   
-    #cmp= df_fin.iloc[0]['5日勝率']
-    #df_fin['5日勝率'] = df_fin['5日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x) 
-    #df_fin.style.applymap(show,subset=['5日勝率'])
-    
-    print(lno(),df_fin)
-    pass
+   
 def longred_analy_mode(startdate,enddate,mode):
     
     global g_stk,g_engine
@@ -1347,7 +1351,7 @@ if __name__ == '__main__':
             ## TODO gg gen_analy_data
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            method=[mv5_vol_ratio,market_value]
+            method=[get_analy_1,mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day]
             table_name='find_point_K'
             gen_analy_data(startdate,enddate,table_name,method)                        
     elif sys.argv[1]=='r' :
@@ -1358,8 +1362,6 @@ if __name__ == '__main__':
             find_stock=findstock()
             method='VeryLongRed_10day'
             find_stock_analy(method,startdate,enddate)            
-    elif sys.argv[1]=='allsql' :  
-        pass      
     else:   
         objdatetime=datetime.strptime(sys.argv[1],'%Y%m%d')
         #down_fut_op_big3(objdatetime)
