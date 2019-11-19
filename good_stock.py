@@ -682,9 +682,9 @@ def gen_final_df(df_fin,name,df1):
     d5_porfit=df1['day5'].sum()
     d20_porfit=df1['day20'].sum()
     d60_porfit=df1['day60'].sum()
-    _list=[name,d5_num,d5_ok/d5_num,d5_porfit/d5_num,d20_num,d20_ok/d20_num,d20_porfit/d20_num,d60_num,d60_ok/d60_num,d60_porfit/d60_num]
+    _list=[name,d5_num,d20_num,d60_num,d5_ok/d5_num,d5_porfit/d5_num,d20_ok/d20_num,d20_porfit/d20_num,d60_ok/d60_num,d60_porfit/d60_num]
     print(lno(),d5_num,d20_num,d60_num)
-    cols=['名稱','5日總數','5日勝率','5日獲利','20日總數','20日勝率','20日獲利','60日總數','60日勝率','60日獲利']
+    cols=['名稱','5日總數','20日總數','60日總數','5日勝率','5日獲利','20日勝率','20日獲利','60日勝率','60日獲利']
     dfo=pd.DataFrame([_list],columns=cols).round({'5日勝率': 2,'5日獲利': 5,'20日勝率': 2,'20日獲利': 5,'60日勝率': 2,'60日獲利': 5})
     df_fin=pd.concat([df_fin, dfo])
     return df_fin
@@ -692,89 +692,148 @@ def gen_final_df(df_fin,name,df1):
 def gen_cond_fin_df(df_fin,cond,df):
     cond0=cond[0][0]
     va0=cond[0][1]
-    cond1=cond[1][0]
-    va1=cond[1][1]
-    if len(cond[1])==4:
-        va2=cond[1][2]
-        va3=cond[1][3]
-        str='{}>={} {}>={}'.format(cond0,va0,cond1,va1)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] >=va1 ) ] )
-        str='{}>={} {}<{} >={}'.format(cond0,va0,cond1,va1,va2)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va1 )&(df.loc[:,cond1] >=va2 ) ] )
-        str='{}>={} {}<{} >={}'.format(cond0,va0,cond1,va2,va3)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va2 )&(df.loc[:,cond1] >=va3 ) ] )
-        str='{}>={} {}<{} '.format(cond0,va0,cond1,va3)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va3 ) ] ) 
+    
+    if len(cond)==1: ##單條件
+        if len(cond[0])==4:
+            cond1=cond[0][0]
+            va1=cond[0][1]    
+            va2=cond[0][2]
+            va3=cond[0][3]
+            str='{}>={}'.format(cond1,va1)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond1] >=va1 ) ] )
+            str='{}<{} >={}'.format(cond1,va1,va2)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond1] <va1 )&(df.loc[:,cond1] >=va2 ) ] )
+            str='{}<{} >={}'.format(cond1,va2,va3)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond1] <va2 )&(df.loc[:,cond1] >=va3 ) ] )
+            str='{}<{} '.format(cond1,va3)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond1] <va3 ) ] ) 
+        else:    
+            str='{}>={}'.format(cond0,va0)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) ] )
+            str='{}<{}'.format(cond0,va0)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0)  ] )
+    elif len(cond)==2:
+        cond1=cond[1][0]
+        va1=cond[1][1]    
+        if len(cond[1])==4: ##第2條件 有3項
+            va2=cond[1][2]
+            va3=cond[1][3]
+            str='{}>={} {}>={}'.format(cond0,va0,cond1,va1)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] >=va1 ) ] )
+            str='{}>={} {}<{} >={}'.format(cond0,va0,cond1,va1,va2)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va1 )&(df.loc[:,cond1] >=va2 ) ] )
+            str='{}>={} {}<{} >={}'.format(cond0,va0,cond1,va2,va3)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va2 )&(df.loc[:,cond1] >=va3 ) ] )
+            str='{}>={} {}<{} '.format(cond0,va0,cond1,va3)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va3 ) ] ) 
 
+            str='{}<{} {}>={}'.format(cond0,va0,cond1,va1)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] >=va1 ) ] )
+            str='{}<{} {}<{} >={}'.format(cond0,va0,cond1,va1,va2)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va1 )&(df.loc[:,cond1] >=va2 ) ] )
+            str='{}<{} {}<{} >={}'.format(cond0,va0,cond1,va2,va3)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va2 )&(df.loc[:,cond1] >=va3 ) ] )
+            str='{}<{} {}<{} '.format(cond0,va0,cond1,va3)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va3 ) ] ) 
 
-        str='{}<{} {}>={}'.format(cond0,va0,cond1,va1)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] >=va1 ) ] )
-        str='{}<{} {}<{} >={}'.format(cond0,va0,cond1,va1,va2)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va1 )&(df.loc[:,cond1] >=va2 ) ] )
-        str='{}<{} {}<{} >={}'.format(cond0,va0,cond1,va2,va3)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va2 )&(df.loc[:,cond1] >=va3 ) ] )
-        str='{}<{} {}<{} '.format(cond0,va0,cond1,va3)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va3 ) ] ) 
-
-    else:    
-        str='{}>={} {}>={}'.format(cond0,va0,cond1,va1)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] >=va1 ) ] )
-        str='{}>={} {}<{}'.format(cond0,va0,cond1,va1)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va1 ) ] )
-        str='{}<{} {}>={}'.format(cond0,va0,cond1,va1)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] >=va1 ) ] )
-        str='{}<{} {}<{}'.format(cond0,va0,cond1,va1)
-        df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va1 ) ] )
+        else:    
+            str='{}>={} {}>={}'.format(cond0,va0,cond1,va1)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] >=va1 ) ] )
+            str='{}>={} {}<{}'.format(cond0,va0,cond1,va1)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] >= va0) & (df.loc[:,cond1] <va1 ) ] )
+            str='{}<{} {}>={}'.format(cond0,va0,cond1,va1)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] >=va1 ) ] )
+            str='{}<{} {}<{}'.format(cond0,va0,cond1,va1)
+            df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond0] < va0) & (df.loc[:,cond1] <va1 ) ] )
     return df_fin
-def gen_3cond_fin_df(df_fin,cond,df):
-    ##TODO FIXME need add 3 cond
-    str='{}>={} {}>={}'.format(cond[0][0],va0,cond1,cond[1][1],cond[2][0],cond[2][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
-            & (df.loc[:,cond[1][0]] >=cond[1][1] )& (df.loc[:,cond[2][0]] >=cond[2][1] ) ] )
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
-            & (df.loc[:,cond[1][0]] >=cond[1][1] )& (df.loc[:,cond[2][0]] <cond[2][1] ) ] )
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
-            & (df.loc[:,cond[1][0]] <cond[1][1] )& (df.loc[:,cond[2][0]] >=cond[2][1] ) ] )
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) 
-            & (df.loc[:,cond[1][0]] <cond[1][1] )& (df.loc[:,cond[2][0]] <cond[2][1] ) ] )
-    str='{}>={} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] >= cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
-    str='{}<{} {}>={}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] < cond[0][1]) & (df.loc[:,cond[1][0]] >=cond[1][1] ) ] )
-    str='{}<{} {}<{}'.format(cond[0][0],cond[0][1],cond[1][0],cond[1][1])
-    df_fin=gen_final_df(df_fin,str,df[(df.loc[:,cond[0][0]] < cond[0][1]) & (df.loc[:,cond[1][0]] <cond[1][1] ) ] )
-    return df_fin    
+
 def find_stock_analy(method,startdate,enddate):
     engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
-    stk=comm.stock_data()
+    stk=get_stock_data
     con = engine.connect() 
-    
-    #table_name='verylongred_v1'
-    table_name='find_point_K'
+
+    table_name=method
     cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
-    df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
-    df_fin=pd.DataFrame()
+    df_all = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     
-    df_fin=gen_final_df(df_fin,'全部',df)
-    
+    df_all = df_all.rename({'ma_tangled_day': '均線糾纏日期', 'upper_shadow': '上影線比例', 'over_prev_high': '過昨日高', 'mv5_vol_ratio': '量增比例'}, axis=1)
+    df_out=pd.DataFrame()
+    list=['市值>=100億','市值<100億']
+    for i in list:
+        if '>' in i :
+            df=df_all[(df_all.loc[:,"市值(億)"] >= 100)]
+            filen='big'
+        else:
+            df=df_all[(df_all.loc[:,"市值(億)"] < 100)]
+            filen='small'
+        df_fin=pd.DataFrame()      
+        df_fin=gen_final_df(df_fin,i,df)
+        cond=[["MA89(角度)",0.0]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["MA21(角度)",0.0]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["MA5(角度)",0.0]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["ma1_ma5",1]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["ma1_ma21",1]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["ma5_ma21",1]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        if 'tdcc' in table_name:
+            cond=[["大戶買超",500]]
+            df_fin=gen_cond_fin_df(df_fin,cond,df)
+            cond=[["中戶買超",500]] 
+            df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["投信",200000]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["外資",200000]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[['量增比例',5,2,1]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        
+        
+        cond=[["均線糾纏日期",5]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["上影線比例",0.3]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["過昨日高",0.0]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cmp= df_fin.iloc[0]['5日勝率']
+        df_fin['5日勝率'] = df_fin['5日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+        cmp= df_fin.iloc[0]['5日獲利']
+        df_fin['5日獲利'] = df_fin['5日獲利'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+        
+        cmp= df_fin.iloc[0]['20日勝率']
+        df_fin['20日勝率'] = df_fin['20日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+        cmp= df_fin.iloc[0]['20日獲利']
+        df_fin['20日獲利'] = df_fin['20日獲利'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+        
+        cmp= df_fin.iloc[0]['60日勝率']
+        df_fin['60日勝率'] = df_fin['60日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+        cmp= df_fin.iloc[0]['60日獲利']
+        df_fin['60日獲利'] = df_fin['60日獲利'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
+        comm.to_html(df_fin,'out/buy_signal/{}-{}_{}-{}fin.html'.format(table_name,filen,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
+        df_out=pd.concat([df_out,df_fin])
+    """
     cond=[["市值(億)",100],["MA89(角度)",0.0]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
     cond=[["市值(億)",100],["MA21(角度)",0.0]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
-    """
-    df_fin=gen_final_df(df_fin,'小市值 MA89往上21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
-    df_fin=gen_final_df(df_fin,'小市值 MA89往上21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] >0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
-    df_fin=gen_final_df(df_fin,'小市值 MA89往下21往上',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] >0 ) ] )
-    df_fin=gen_final_df(df_fin,'小市值 MA89往下21往下',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"MA89(角度)"] <=0 )& (df.loc[:,"MA21(角度)"] <=0 ) ] )
-    """
+    
     cond=[["市值(億)",100],["均線糾纏日期",5]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
     cond=[["市值(億)",100],["上影線比例",0.3]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
     cond=[["市值(億)",100],["過昨日高",0.0]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
-    cond=[["市值(億)",100],['量增比例',8,3,1]]
+    cond=[["市值(億)",100],['量增比例',5,2,1]]
     df_fin=gen_cond_fin_df(df_fin,cond,df)
+    cond=[["市值(億)",100],["外資",200000]]
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
+    cond=[["市值(億)",100],["投信",200000]]
+    df_fin=gen_cond_fin_df(df_fin,cond,df)
+    
     print(lno(),df_fin)
     cmp= df_fin.iloc[0]['5日勝率']
     df_fin['5日勝率'] = df_fin['5日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
@@ -790,68 +849,10 @@ def find_stock_analy(method,startdate,enddate):
     df_fin['60日勝率'] = df_fin['60日勝率'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
     cmp= df_fin.iloc[0]['60日獲利']
     df_fin['60日獲利'] = df_fin['60日獲利'].apply(lambda x: f'<font color="red">{x}</font>'.format(x) if x>cmp else x)
-    comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
-def find_stock_ma_tangled(method,startdate,enddate):
-    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
-    stk=comm.stock_data()
-    con = engine.connect() 
-    ##TODO find_stock_ma_tangled 均線糾結
-    table_name='verylongred_v1'
-    cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <= "{}"'.format(table_name,startdate,enddate)
-    df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
-    #print(lno(),df.duplicated())
-    #print(lno(),df)
-    #raise
-    tStart = time.time()
-    def get_correction_box(r):
-        ##突破當日資料不要
-        df1=stk.get_df_by_enddate_num(r.stock_id,r.date-relativedelta(days=1),120)
-        
-        ma_list = [5,10,20]
-        tmp=[]
-        for ma in ma_list:
-            df1['MA_' + str(ma)] = talib.MA(df1.close,ma)
-            #tmp.append(talib.LINEARREG_ANGLE(df1['MA_'+ str(ma)].values,ma)[-1])
-        #print(lno(),df1.tail(5))
-        def calc_sizeway(r):
-            max_value=max(r.MA_5,r.MA_10,r.MA_20)
-            min_value=min(r.MA_5,r.MA_10,r.MA_20)
-            if min_value==0:
-                return np.nan
-            return (max_value-min_value)/min_value*100
-        #df1['sizeway']=df1.apply(calc_sizeway,axis=1)
-        sideway=df1.apply(calc_sizeway,axis=1)
-        #tmp.append(talib.LINEARREG_ANGLE(df1['value4'].values,5)[-1])
-        rev_sideway=sideway[::-1]
-        #print(lno(),rev_sideway)
-        cnt=0
-        for i in rev_sideway:
-            if i<=0.5:
-                cnt=cnt+1
-                continue
-            break
-        #sys.exit()
-        if abs(cnt)>=5 :
-            #print(lno(),r.stock_id,r.date,tmp)    
-            #kline.show_stock_kline_pic(r.stock_id,r.date,120)
-            pass
-        return cnt
-    #df['ma_tangled_day']=df.swifter.apply(get_correction_box,axis=1)
-    df['ma_tangled_day']=df.apply(get_correction_box,axis=1)
-    #df.to_sql(name='verylongred_v2', con=con, if_exists='replace', index=False,chunksize=10)        
-    df_fin=pd.DataFrame()
-    df_fin=gen_final_df(df_fin,'全部',df)
-    df_fin=gen_final_df(df_fin,'大市值 均線糾纏日期>=5',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"ma_tangled_day"] >=5 ) ] )
-    df_fin=gen_final_df(df_fin,'大市值 均線糾纏日期<5',df[(df.loc[:,"市值(億)"] >= 100) & (df.loc[:,"ma_tangled_day"] <5 ) ] )
-    df_fin=gen_final_df(df_fin,'小市值 均線糾纏日期>=5',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"ma_tangled_day"] >=5 ) ] )
-    df_fin=gen_final_df(df_fin,'小市值 均線糾纏日期<5',df[(df.loc[:,"市值(億)"] < 100) & (df.loc[:,"ma_tangled_day"] <5 ) ] )
-    print(lno(),df_fin)
-   
-    
-    
-    comm.to_html(df_fin,'out/buy_signal/{}_{}-{}fin.html'.format("均線糾纏",startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
-    tEnd = time.time()
-    print ("It cost %.3f sec" % (tEnd - tStart))   
+    """
+    print(lno(),df_out)
+    comm.to_html(df_out,'out/buy_signal/{}_{}-{}fin.html'.format(table_name,startdate.strftime('%Y%m%d'),enddate.strftime('%Y%m%d') ))
+ 
 def find_ma1_cross_ma5(df):
     if len(df.index)==0:
         return np.nan
@@ -884,15 +885,14 @@ def red_K_ratio_calc(r):
         return red_K_pwr 
     except :
         return np.nan
+def Kbody_calc(r):
+    try:
+        return abs(r.close-r.open)
+    except :
+        return np.nan    
 def find_point_K(r):
-    ## TODO: 關鍵 K 
-    # K線力道 60日前10
-    
-    global g_stk
     try :
         cash=float(r.cash)
-        
-        
         if cash<3000000:
             return 
         open=float(r.open)
@@ -916,9 +916,7 @@ def find_point_K(r):
         
         raise
     #print(lno(),red_K_ratio,r.stock_id,r.date)
-    if g_stk==None:
-        g_stk=comm.stock_data()
-    stk=g_stk
+    stk=get_stock_data()
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date,122)
     #print(lno(),df1)
     if len(df1)<90:
@@ -929,7 +927,7 @@ def find_point_K(r):
     if df1.iloc[-1]['red_K_ratio']>=top10:
         return 1
     return 
-
+##TODO: find_point_K  傳function 給run_fun 做股票篩選
 def findstock_test(startdate,enddate):
     fs=findstock()
     nowdate=enddate
@@ -982,6 +980,7 @@ def get_stock_data():
             g_stk=comm.stock_data()
         stk=g_stk
     return stk
+
 g_tdcc=None
 def get_tdcc_dist():
     global g_tdcc
@@ -992,13 +991,24 @@ def get_tdcc_dist():
         if g_tdcc==None:
             g_tdcc=tdcc_dist.tdcc_dist()
         return g_tdcc 
+g_sb3=None
+def get_stock_big3():
+    global g_sb3
+    if multitask==1:
+        sb3=stock_big3.stock_big3()
+        return sb3
+    else:
+        if g_sb3==None:
+            g_sb3=stock_big3.stock_big3()
+            print(lno(),g_sb3)    
+        return g_sb3 
 
 def mv5_vol_ratio(r):
     stk=get_stock_data()
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
     try :
         df1['MV5'] = talib.MA(df1.vol,5)
-        v_ratio=df1.iloc[-1]['vol']/df1.iloc[-1]['MV5']
+        v_ratio=df1.iloc[-1]['vol']/df1.iloc[-2]['MV5']
     except:
         print(lno(),"some thing wrong",df1)
         #raise
@@ -1025,6 +1035,7 @@ def over_prev_high(r):
         return np.nan     
     return over_phigh
 def ma_tangled_day(r):
+    stk=get_stock_data() 
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date-relativedelta(days=1),120)
     ma_list = [5,10,20]
     for ma in ma_list:
@@ -1059,15 +1070,20 @@ def get_analy_1(r):
     ma_list = [5,21,89]
     for ma in ma_list:
         df1['MA_' + str(ma)] = df1['close'].rolling(window=ma,center=False,axis=0).mean()
-
+    ma1_ma5=np.nan    
+    ma1_ma21=np.nan    
+    ma5_ma21=np.nan    
     ma5_angle=np.nan    
     ma21_angle=np.nan    
     ma89_angle=np.nan    
     datanum=len(df1.index)    
     try:
         if datanum>=6:
+            ma1_ma5=df1.iloc[-1]['close'] /df1.iloc[-1]['MA_5']
             ma5_angle=talib.LINEARREG_ANGLE(df1['MA_5'].values,2)[-1]    
         if datanum>=22:
+            ma1_ma21=df1.iloc[-1]['close'] /df1.iloc[-1]['MA_21']
+            ma5_ma21=df1.iloc[-1]['MA_5'] /df1.iloc[-1]['MA_21']
             ma21_angle=talib.LINEARREG_ANGLE(df1['MA_21'].values,2)[-1]    
         if datanum>=90:
             ma89_angle=talib.LINEARREG_ANGLE(df1['MA_89'].values,2)[-1]   
@@ -1106,9 +1122,52 @@ def get_analy_1(r):
     else:
         value=np.nan    
     #print(lno(),day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle)    
-    return day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle
-        
-            
+    return day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle,ma1_ma5,ma1_ma21,ma5_ma21
+
+def get_ma5_21(r):
+    date=r.date
+    stock_id=r.stock_id
+    stk=get_stock_data()
+    df1=stk.get_df_by_enddate_num(stock_id,date-relativedelta(days=1),120)
+    ma_list = [5,21]
+    for ma in ma_list:
+        df1['MA_' + str(ma)] = df1['close'].rolling(window=ma,center=False,axis=0).mean()
+
+    ma1_ma5=np.nan    
+    ma1_ma21=np.nan    
+    ma5_ma21=np.nan    
+  
+    datanum=len(df1.index)    
+    try:
+        if datanum>=6:
+            ma1_ma5=df1.iloc[-1]['close'] /df1.iloc[-1]['MA_5']
+        if datanum>=22:
+            ma1_ma21=df1.iloc[-1]['close'] /df1.iloc[-1]['MA_21']
+            ma5_ma21=df1.iloc[-1]['MA_5'] /df1.iloc[-1]['MA_21']
+
+    except:
+        print(lno(),stock_id)
+        print(lno(),df1.close)
+
+    return ma1_ma5,ma1_ma21,ma5_ma21
+
+##投信買超
+def get_big3_buy_vol(r):
+    #print(lno(),r.stock_id,r.date)
+    sb3=get_stock_big3()
+    df=sb3.get_df_by_id_date(r.stock_id,r.date)
+    #print(lno(),df)
+    if len(df.index)==0:
+        out=[0,0,0,0]
+    else:    
+        out=df[['外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']].values[0].tolist()
+    #print(lno(),out)
+    #sys.exit()   
+    return out
+def get_tdcc_dist_1000_400_buy_vol(r):
+    tdcc=get_tdcc_dist() 
+    b_diff,m_diff=tdcc.get_tdcc_1000_400(r.stock_id,r.date)
+    return b_diff,m_diff
 def gen_analy_data(startdate,enddate,table_name,methods):
     stk,engine,con=init_sql()
     print(lno(),startdate,enddate,table_name,methods)
@@ -1116,11 +1175,16 @@ def gen_analy_data(startdate,enddate,table_name,methods):
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     for func in methods:
         print(lno(),func.__name__)
-        if func.__name__='get_analy_1':
-            df[['day5','day20','day60','市值(億)','MA5(角度)','MA21(角度)','MA89(角度)']]=df.apply(get_analy_1,axis=1,result_type="expand")
+        if func.__name__=='get_analy_1':
+            df[['day5','day20','day60','市值(億)','MA5(角度)','MA21(角度)','MA89(角度)','ma1_ma5','ma1_ma21','ma5_ma21']]=df.apply(func,axis=1,result_type="expand")
+        elif func.__name__=='get_big3_buy_vol':
+            df[['外資','投信','自營商','三大法人']]=df.apply(func,axis=1,result_type="expand")
+        elif func.__name__=='get_tdcc_dist_1000_400_buy_vol':
+            df[['大戶買超','中戶買超']]=df.apply(func,axis=1,result_type="expand")  
         else:    
             df[func.__name__]=df_apply_fun(df,func)    
     print(lno(),df)
+    df.to_sql(name='{}_v1'.format(table_name), con=con, if_exists='append', index=False,chunksize=10)
     raise
    
 def longred_analy_mode(startdate,enddate,mode):
@@ -1267,22 +1331,16 @@ if __name__ == '__main__':
             print (lno(),df)  
     elif sys.argv[1]=='t1' :
         if len(sys.argv)==4 :
-            ## TODO 傳function 給run_fun 做股票篩選
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            #method='LongRed_Breakthrough_10day'
-            #method='LongRed_Breakthrough_20day'
             #method='VeryLongRed_10day'
             method='test1'
             findstock_test(startdate,enddate)
     elif sys.argv[1]=='find' :
         if len(sys.argv)==4 :
             ## TODO find_stock test1 generate
-            #method='test1'
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            #method='LongRed_Breakthrough_10day'
-            #method='LongRed_Breakthrough_20day'
             method='VeryLongRed_10day'
             find_stock=findstock()
             day=0
@@ -1307,45 +1365,17 @@ if __name__ == '__main__':
                 nowdate = enddate - relativedelta(days=day)
                 print(lno(),nowdate)
                 find_stock.run(nowdate,method)
-                day=day+1            
-    elif sys.argv[1]=='g2' :
+                day=day+1
+    elif sys.argv[1]=='g1' :
         if len(sys.argv)==4 :
-            ## TODO g2 長紅K 抓取斜率 市值
+            ## TODO g1 gen_analy_data single
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            find_stock=findstock()
-            method='VeryLongRed_10day'
-            find_stock.analy(method,startdate,enddate) 
-    elif sys.argv[1]=='g3' :
-        if len(sys.argv)==4 :
-            ## TODO g3 長紅K 抓取均線糾結
-            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            find_stock=findstock()
-            method='VeryLongRed_10day'
-            find_stock_ma_tangled(method,startdate,enddate)  
-    elif sys.argv[1]=='g4' :
-        if len(sys.argv)==4 :
-            ## TODO g4 長紅K 上影分析
-            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            method='upper_shadow'
-            longred_analy_mode(startdate,enddate,method)
-    elif sys.argv[1]=='g5' :
-        if len(sys.argv)==4 :
-            ## TODO g5 長紅K 過昨日高
-            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            method='over_prev_high'
-            longred_analy_mode(startdate,enddate,method)    
-    elif sys.argv[1]=='g6' :
-        if len(sys.argv)==4 :
-            ## TODO g6 長紅K 量增比例
-            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            method='vol_ratio'
-            longred_analy_mode(startdate,enddate,method)    
-
+            #method=[get_big3_buy_vol]
+            #method=[get_tdcc_dist_1000_400_buy_vol] ## startdate 20150508
+            method=[get_ma5_21]
+            table_name='find_point_K'
+            gen_analy_data(startdate,enddate,table_name,method)                         
     elif sys.argv[1]=='gg' :
         if len(sys.argv)==4 :
             ## TODO gg gen_analy_data
@@ -1359,9 +1389,18 @@ if __name__ == '__main__':
             ## TODO r report all 分析 大小市值 斜率
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            find_stock=findstock()
-            method='VeryLongRed_10day'
-            find_stock_analy(method,startdate,enddate)            
+            #find_stock=findstock()
+            method='find_point_K'
+            #method='find_point_K_tdcc'
+            find_stock_analy(method,startdate,enddate)
+    elif sys.argv[1]=='r1' :
+        if len(sys.argv)==4 :
+            ## TODO r1  verylongred_v1 report all 分析 大小市值 斜率
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+            #find_stock=findstock()
+            method='verylongred_v1'
+            find_stock_analy(method,startdate,enddate)                        
     else:   
         objdatetime=datetime.strptime(sys.argv[1],'%Y%m%d')
         #down_fut_op_big3(objdatetime)

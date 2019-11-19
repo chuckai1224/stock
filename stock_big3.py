@@ -518,7 +518,7 @@ class stock_big3:
         day=0
         while nowdate<=enddate:
             nowdate=startdate+relativedelta(days=day)
-            self.download(nowdate,download=0)
+            self.download(nowdate,download)
             day=day+1             
     def get_df_by_date(self,date):
         table_name=date.strftime('%Y%m%d')
@@ -547,12 +547,13 @@ class stock_big3:
             day=day+1
             if day>num*100:
                 break
-        df_fin.columns=['日期','外資','投信','自營商','三大法人買賣超']
-        df_fin['外資']=df_fin['外資']/1000
-        df_fin['投信']=df_fin['投信']/1000
-        df_fin['自營商']=df_fin['自營商']/1000
-        df_fin['三大法人買賣超']=df_fin['三大法人買賣超']/1000
-        #print(lno(),df_fin)
+        if len(df_fin.index ):
+            df_fin.columns=['日期','外資','投信','自營商','三大法人買賣超']
+            df_fin['外資']=df_fin['外資']/1000
+            df_fin['投信']=df_fin['投信']/1000
+            df_fin['自營商']=df_fin['自營商']/1000
+            df_fin['三大法人買賣超']=df_fin['三大法人買賣超']/1000
+        print(lno(),df_fin)
         return df_fin
 
               
@@ -620,9 +621,9 @@ if __name__ == '__main__':
             df =get_stock_3big(stock_id,startdate,5)
             
             #df['外資buy']=df['外資buy'].astype('float64')            
-            
-            print(lno(),df[['外資','投信','自營商']])
-            print(lno(),df.loc[:,'外資'].values.tolist())
+            if len(df):
+                print(lno(),df[['外資','投信','自營商']])
+                print(lno(),df.loc[:,'外資'].values.tolist())
             
             
 

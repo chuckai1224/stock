@@ -19,6 +19,7 @@ from bs4 import BeautifulSoup
 import scipy.signal as signal 
 from sqlalchemy import create_engine
 import platform
+import stock_big3
 DEBUG=1
 debug=0
 LOG=1
@@ -1138,4 +1139,6 @@ if __name__ == '__main__':
         print ("It cost %.3f sec" % (tEnd - tStart)) 
         #df=stk.get_df('6152')
         #print(lno(),df)
-        
+
+            
+            

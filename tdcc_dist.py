@@ -1011,7 +1011,10 @@ def get_total_stock(enddate,stock_no):
 
 class tdcc_dist():
     def __init__(self):
-        #self.columns_index=['<1','1-5','5-10','10-15','15-20','20-30','30-40','40-50','50-100','100-200','200-400','400-600','600-800','800-1000','>1000']
+        
+        #self.columns_index=
+        # ['<1','1-5','5-10','10-15','15-20','20-30','30-40','40-50','50-100','100-200','200-400','400-600','600-800','800-1000','>1000']
+        #  0     1     2      3       4       5       6      7       8        9         10        11        12        13         14
         self.columns_old=['<1.人數', '<1.股數', '<1.比例(%)', '1-5.人數', '1-5.股數', '1-5.比例(%)', '5-10.人數', '5-10.股數', '5-10.比例(%)', '10-15.人數', '10-15.股數', '10-15.比例(%)', '15-20.人數', '15-20.股數', '15-20.比例(%)', '20-30.人數', '20-30.股數', '20-30.比例(%)', '30-40.人數', '30-40.股數', '30-40.比例(%)', '40-50.人數', '40-50.股數', '40-50.比例(%)', '50-100.人數', '50-100.股數', '50-100.比例(%)', '100-200.人數', '100-200.股數', '100-200.比例(%)', '200-400.人數', '200-400.股數', '200-400.比例(%)', '400-600.人數', '400-600.股數', '400-600.比例(%)', '600-800.人數', '600-800.股數', '600-800.比例(%)', '800-1000.人數', '800-1000.股數', '800-1000.比例(%)', '>1000.人數', '>1000.股數', '>1000.比例(%)']
         self.engine = create_engine('sqlite:///sql/tdcc_dist.db', echo=False)
         self.engine_old = create_engine('sqlite:///sql/tdcc_dist_old.db', echo=False)
@@ -1052,6 +1055,53 @@ class tdcc_dist():
             except:
                 print(lno(),stock_id,'dist no data')
                 return 0
+    def get_tdcc_1000_400(self,stock_id,date):
+        ##TODO get tdcc 1000 400
+        enddate=date+relativedelta(days=7)
+        startdate=date-relativedelta(months=3)
+        old_date=datetime(2018,5,4)
+        weel_begin_date=datetime(2015,4,30) ##20150508 第2周
+        if date>old_date:
+            cols=['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29']
+            small=  ['15','16','17','18','19','20','21','22','23','24','25']
+            middle= ['26','27','28']
+            big=    ['29']
+            #print(lno(),cols)
+            cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <"{}"'.format(stock_id,startdate,enddate)
+            #print(lno(),cmd)
+            try:
+                df=pd.read_sql(cmd, con=self.conn,parse_dates=['date'])  
+                #print(lno(),df.iloc[-1][cols].values.sum())
+                total_diff=df.iloc[-1][cols].values.sum()-df.iloc[-2][cols].values.sum()
+                b_diff=df.iloc[-1][big].values.sum()-df.iloc[-2][big].values.sum()
+                m_diff=df.iloc[-1][middle].values.sum()-df.iloc[-2][middle].values.sum()
+                return b_diff,m_diff
+            except:
+                print(lno(),stock_id,'dist no data')
+                ## continue with old database
+                #return 0        
+        cmd='SELECT * FROM "{}" WHERE date >= "{}" and date <"{}"'.format(stock_id,startdate,enddate)
+            #print(lno(),cmd)
+        try:
+            df=pd.read_sql(cmd, con=self.conn_old,parse_dates=['date'])  
+            #print(lno(),df.iloc[0]['total_stock_num']
+            ## old tdcc dist date index 從近到遠
+            total_diff=df.iloc[0]['total_stock_num']-df.iloc[1]['total_stock_num']
+            #print(lno(),df.iloc[0]['>1000比例'],df.iloc[1]['>1000比例']) 
+            b_diff=df.iloc[0]['>1000比例']*df.iloc[0]['total_stock_num']/100 \
+                -df.iloc[1]['>1000比例']*df.iloc[1]['total_stock_num']/100
+            #print(lno(),df.iloc[0]['>400比例'],df.iloc[1]['>400比例'])     
+            m_diff=(df.iloc[0]['>400比例']-df.iloc[0]['>1000比例'])*df.iloc[0]['total_stock_num']/100 \
+                -(df.iloc[1]['>400比例']-df.iloc[1]['>1000比例'])*df.iloc[1]['total_stock_num']/100    
+            #print(lno(),b_diff,m_diff)  
+            #print(lno(),df.columns)  
+            #print(lno(),df.iloc[0]['date']-df.iloc[1]['date'] >10)     
+            return b_diff,m_diff
+            
+        except:
+            print(lno(),stock_id,'dist no data')
+            return np.nan,np.nan
+            
 
     def get_df_bydate(self,stock_id,date):
         pass
@@ -1170,7 +1220,15 @@ def tdcc_sql_t0(date):
     #print(lno(),df)
     stocks=tdcc.get_total_stock_num('6192',date)
     print(lno(),stocks)
-##TODO 股本
+def test_tdcc_dist_by_date(date):
+    ##TODO: code >400 >1000 
+    tdcc=tdcc_dist()
+    df=tdcc.get_df('6192')
+    #print(lno(),df)
+    b_diff,m_diff=tdcc.get_tdcc_1000_400('6192',date)
+    print(lno(), b_diff,m_diff)
+    #return df    
+
 def requests_get_dist( stock_no):
     path='data/dist'
     if not os.path.isdir(path):
@@ -1464,11 +1522,13 @@ if __name__ == '__main__':
         #print(lno(),list[0],list[1])
         filen='out/%s_%d%02d%02d.png'%(stock_no,dataday.year,dataday.month,dataday.day)
         tdcc_dist_plot(stock_no,dataday,list[0],list[1],filen)
+    elif sys.argv[1]=="get" :
+        dataday=datetime.strptime(sys.argv[2],'%Y%m%d')
+        test_tdcc_dist_by_date(dataday)    
     elif sys.argv[1]=="good" :
         dataday=datetime.strptime(sys.argv[2],'%Y%m%d')
         gen_tdcc_dist_good(dataday)
     elif sys.argv[1]=="sql" :
-        ## TODO sql start
         dataday=datetime.strptime(sys.argv[2],'%Y%m%d')
         tdcc_sql(dataday)
     elif sys.argv[1]=="sql_t0" :

@@ -11,7 +11,7 @@ import pandas as pd
 import requests
 from io import StringIO
 from inspect import currentframe, getframeinfo
-
+from sqlalchemy import create_engine
 import inspect
 import traceback
 DEBUG=1
@@ -314,12 +314,101 @@ def get_revenue_by_stockid(stock_id,enddate):
         
         month=month+1       
     return nowdatetime.month,pd.DataFrame()    
+class income:
+    def __init__(self):
+        self.engine = create_engine('sqlite:///sql/income.db', echo=False)
+        self.con = self.engine.connect()
+        self.data_folder='data/revenue' 
+        check_dst_folder(self.data_folder)
+        
+    def download(self,date,dw=0):
+        year=date.year
+        month=date.month
+        # 假如是西元，轉成民國
+        if year > 1990:
+            year -= 1911
+        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+        index_list=[0,1] 
+        markets=['sii','otc']
+        for market in markets:
+            for index in index_list:
+                #https://mops.twse.com.tw/nas/t21/sii/t21sc03_108_6_0.html    
+                url = 'https://mops.twse.com.tw/nas/t21/{}/t21sc03_{}_{}_{}.html'.format(market,year,month,index)
+                filename='%s/%s_%d-%02d_%d'%(self.data_folder,market,year, month,index)
+                out_file='%s/%s_%d-%02d_%d.csv'%(self.data_folder,market,year, month,index)
+                # 下載該年月的網站，並用pandas轉換成 dataframe
+                print(lno(),url)
+                if dw==1:
+                    r = requests.get(url, headers=headers)
+                    if not r.ok:
+                        print(lno(),"Can not get data at {}".format(url))
+                        return 
+                    with open(filename, 'wb') as file:
+                        # A chunk of 128 bytes
+                        for chunk in r:
+                            file.write(chunk)
+                dfs = pd.read_html(filename, encoding='big-5')
+                for df in dfs:
+                    #print(lno(),len(df),df)
+                    df1= df.copy() #.dropna(axis=1,how='all')
+                    inx=df1[(df1[1]=='公司名稱')].index.tolist()
+                    iix=df1[(df1[1]=='光寶科')].index.tolist()
+                    if len(iix):
+                        print(lno(),inx)
+                        print(lno(),df1)
+                    if len(inx)==1:
+                        if inx[0]==3:
+                            df1.columns=df.iloc[2].values.tolist()
+                            df1=df1.drop([0,1,2])
+                            #print(lno(),df1)
+                            #print(lno(),df1.shape)
+                            #print(lno(),df1.shape)
+                            #raise
+                        elif inx[0]==1:
+                            #print(lno(),df1)
+                            df1.columns=df.iloc[1].values.tolist()    
+                            df1=df1.drop([0,1])
+                            #df2=df2.dropna(axis=1,how='all').reset_index(drop=True)
+                            #print(lno(),df1)
+                            #print(lno(),df1.shape)
+                        else:
+                            print(lno(),inx)    
+                        
+                        #print(len(df.iloc[3])-df.iloc[3].isna().sum())
+                    else:         
+                        #if '公司名稱' in df.at[1,1]:
+                        
+                        pass
+                        
+                        print(lno(),df1.shape)
+                        print(lno(),inx)
+                    
+                raise    
+                df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
+                #print(lno(),df.columns)
+                if 'levels' in dir(df.columns):
+                    df.columns = df.columns.get_level_values(1)
+                else:
+                    df = df[list(range(0,10))]
+                    #print(lno(),df.tail())
+                    column_index = df.index[(df[0] == '公司代號')][0]
+                    df.columns = df.iloc[column_index]
+                print(lno(),len(df))
+                df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
+                df = df[~df['當月營收'].isnull()]
+                df = df[df['公司代號'] != '合計']
+                #time.sleep(5)
+                df.to_csv(out_file,encoding='utf-8', index=False)
+    
+        pass    
 if __name__ == '__main__':
 
     
     if len(sys.argv)==1:
         startdate=datetime.today().date()
-        #down_tse_monthly_report(int(startdate.year),int(startdate.month)-1)
+        #
+        #income.download_otc(date)
+        down_tse_monthly_report(int(startdate.year),int(startdate.month)-1)
         down_otc_monthly_report(int(startdate.year),int(startdate.month)-1)
         #down_op_pc(startdate,startdate)
         #down_optData(startdate,startdate)
@@ -377,11 +466,22 @@ if __name__ == '__main__':
             get_revenue_by_stockid(stock_id,datatime)
         else :
             print (lno(),'func -g date')        
-    elif len(sys.argv)==2:   
-        datatime=datetime.strptime(sys.argv[1],'%Y%m%d')
-        down_tse_monthly_report(int(datatime.year),int(datatime.month))
-        down_otc_monthly_report(int(datatime.year),int(datatime.month))
-        gen_revenue_final_file(datatime)
+    elif sys.argv[1]=='sql' :
+        income=income()
+        startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        try:
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+        except:
+            enddate=startdate
+        now_date = startdate 
+        while   now_date<=enddate :
+            #down_tse_monthly_report(int(now_date.year),int(now_date.month))
+            #down_otc_monthly_report(int(now_date.year),int(now_date.month))
+            income.download(now_date)
+            #gen_revenue_final_file(now_date)
+            now_date = now_date + relativedelta(months=1)
+   
+        
     else:
         print (lno(),"unsport ")
         sys.exit()
