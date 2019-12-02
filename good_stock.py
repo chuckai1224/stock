@@ -35,6 +35,7 @@ from sqlalchemy import create_engine
 #from pyecharts import Kline
 #from pyecharts import Candlestick
 #import webbrowser
+import revenue
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from time import sleep
@@ -246,54 +247,51 @@ def get_good_stock_m1(selday,debug=0):
     市值（百萬） < 10000
     投信當日買賣 > 200 張
     """
-    fflag='tse'
-    stock_3big_df=stock_big3.get_stock_3big_all(selday,'tse')
-    #print( lno(),stock_3big_df)
-    try:
-        df= stock_3big_df[(stock_3big_df['投信買賣超股數'] >= 200000)][['證券代號','證券名稱','外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']].reset_index(drop=True)
-        #print( lno(),df.head())
-        df_ex=comm.get_tse_exchange_data(selday)[[ 'stock_id','close']]
-        #print( lno(),df_ex.head())
-        df_ex.columns=['證券代號','close']
-        df=pd.merge(df,df_ex)
-        #print( lno(),df)
-    except:
-        print(lno(),selday,"無資料")
-    otc_df=stock_big3.get_stock_3big_all(selday,'otc')
-    #print(lno(),otc_df[['證券代號','證券名稱','外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']])
-    try:
-        df1= otc_df[(otc_df['投信買賣超股數'] >= 200000)][['證券代號','證券名稱','外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']]
-        df_ex=comm.get_otc_exchange_data(selday)[[ 'stock_id','close']]
-        df_ex.columns=['證券代號','close']
-        df1=pd.merge(df1,df_ex)
-    except:
-        print(lno(),selday,"otc無資料")    
-    #print(lno(),df.dtypes)
-    #print(lno(),df1.dtypes)
-    if len(df)==0 and len(df1)==0:
+    sb3=get_stock_big3()
+    stock_3big_df=sb3.get_df_by_date(selday)
+    if len(stock_3big_df)==0:
         return pd.DataFrame()
-    elif len(df)==0 and len(df1)!=0:
-        df2=df1
-    elif len(df)!=0 and len(df1)==0:
-        df2=df
-    else:    
-        df2=pd.concat([df,df1]).reset_index(drop=True)
-    df2['close']=df2['close'].astype('float64')
-    #print(lno(),df2)
-    def get_total_stock(row):
-        if len(row['證券代號'])!=4:
-            return 0
-        return tdcc_dist.get_total_stock(selday,row['證券代號'])
-    df2['總股數']=df2.apply(get_total_stock, axis=1)
-    
-    df2['市值']=df2['總股數']*df2['close']
-    df3=df2[(df2['市值'] <= 10000*1000000) & (df2['市值'] > 10000)]
-
+    df= stock_3big_df[(stock_3big_df['投信買賣超股數'] >= 200000)].copy()
     #print(lno(),df)
-    #print(lno(),df1)
-    if debug==1:
-        print(lno(),selday,df3)
-    return df3
+    def check_no_need(r):
+        if len(r['證券代號'])!=4:
+            return 0
+        if r['證券代號'].startswith( '0' ):
+            return 0
+        return   1  
+    df['result']=df.apply(check_no_need,axis=1)
+    df_out= df[(df['result'] == 1)].reset_index(drop=True)
+    df_out['證券名稱']=df_out['證券名稱'].str.strip()
+    df_out=df_out[['date','證券代號','證券名稱','market','外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']]
+    df_out.columns=['date','stock_id','stock_name','market','外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']
+    #print(lno(),df_out)
+    return df_out
+
+def get_fund_buy_history():
+    """
+    ##TODO:  莊家偵測　
+    #1. Ｋ線買力＞５日均　３倍
+    #2. Ｋ線買力＞10日均　３倍
+    3. Ｋ線買力＞60日前１０
+    4.投信買超
+    5.千張大戶買超
+    6.４００張以上大戶買超
+    
+    """
+    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    con = engine.connect()
+    startdate=datetime(2013, 1, 1)
+    #startdate=datetime(2019, 1, 1)
+    enddate=datetime(2019, 11, 30)
+    nowdate=startdate
+    df_fin=pd.DataFrame()
+    while nowdate<enddate:
+        nowdate=nowdate+relativedelta(days=1)
+        df1=get_good_stock_m1(nowdate)
+        if len(df1.index):
+            df_fin=pd.concat([df_fin,df1])
+    df_fin.to_sql(name='find_fund_buy_v2', con=con, if_exists='replace', index=False,chunksize=10)       
+    print(lno(),df_fin)
     
     #d=comm.get_tse_exchange_data(selday)
 class findstock:
@@ -792,6 +790,12 @@ def find_stock_analy(method,startdate,enddate):
         cond=[['量增比例',5,2,1]]
         df_fin=gen_cond_fin_df(df_fin,cond,df)
         
+        cond=[["月營收YoY",20]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["月營收均線法",1]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
+        cond=[["月營收成長法",1]]
+        df_fin=gen_cond_fin_df(df_fin,cond,df)
         
         cond=[["均線糾纏日期",5]]
         df_fin=gen_cond_fin_df(df_fin,cond,df)
@@ -927,15 +931,44 @@ def find_point_K(r):
     if df1.iloc[-1]['red_K_ratio']>=top10:
         return 1
     return 
+
+def find_fund_buy(r):
+    try :
+        cash=float(r.cash)
+        if cash<3000000:
+            return
+        if len(r.stock_id)!=4:
+            return 
+        
+        tdcc=get_tdcc_dist() 
+        total_stock_nums=tdcc.get_total_stock_num(r.stock_id,r.date)
+        if total_stock_nums==0:
+            return 
+        sb3=get_stock_big3()
+        df=sb3.get_df_by_id_date(r.stock_id,r.date)
+        #print(lno(),df)
+        if len(df.index)==0:
+            return 
+        else:    
+            #out=df[['外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']].values[0].tolist()
+            fund_buy=df.iloc[0]['投信買賣超股數']
+            #print(lno(),fund_buy)
+            if fund_buy>200*1000:
+                return 1
+            return 
+    except:
+        print(lno())
+        return 
+   
 ##TODO: find_point_K  傳function 給run_fun 做股票篩選
-def findstock_test(startdate,enddate):
+def findstock_run_func(startdate,enddate,func):
     fs=findstock()
     nowdate=enddate
     day=0
     while   nowdate>=startdate :
         nowdate = enddate - relativedelta(days=day)
         print(lno(),nowdate)
-        fs.run_fun(nowdate,find_point_K,'find_point_K')
+        fs.run_fun(nowdate, func,func.__name__)
         day=day+1 
 
 
@@ -1002,7 +1035,17 @@ def get_stock_big3():
             g_sb3=stock_big3.stock_big3()
             print(lno(),g_sb3)    
         return g_sb3 
-
+g_income=None
+def get_sql_income():
+    global g_income
+    if multitask==1:
+        in1=revenue.income()
+        return in1
+    else:
+        if g_income==None:
+            g_income=revenue.income()
+            print(lno(),g_income)    
+        return g_income 
 def mv5_vol_ratio(r):
     stk=get_stock_data()
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date,20)
@@ -1010,7 +1053,7 @@ def mv5_vol_ratio(r):
         df1['MV5'] = talib.MA(df1.vol,5)
         v_ratio=df1.iloc[-1]['vol']/df1.iloc[-2]['MV5']
     except:
-        print(lno(),"some thing wrong",df1)
+        print(lno(),r.stock_id,r.date,"some thing wrong",df1)
         #raise
         return np.nan     
     return v_ratio
@@ -1021,6 +1064,8 @@ def upper_shadow(r):
     try:
         upper_shadow_val=df1.at[0,'high']-df1.at[0,'close']
         real_body=abs(df1.at[0,'close']-df1.at[0,'open'])
+        if real_body==0:
+            return np.nan
         return upper_shadow_val/real_body
     except:
         return np.nan    
@@ -1037,9 +1082,15 @@ def over_prev_high(r):
 def ma_tangled_day(r):
     stk=get_stock_data() 
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date-relativedelta(days=1),120)
-    ma_list = [5,10,20]
-    for ma in ma_list:
-        df1['MA_' + str(ma)] = talib.MA(df1.close,ma)
+    try :
+        ma_list = [5,10,20]
+        for ma in ma_list:
+            df1['MA_' + str(ma)] = talib.MA(df1.close,ma)
+    except:
+        print(lno(),r.stock_id,r.date,len(df1.index))  
+        if len(df1.index)==0:
+            return np.nan      
+        raise
     def calc_sizeway(r):
         max_value=max(r.MA_5,r.MA_10,r.MA_20)
         min_value=min(r.MA_5,r.MA_10,r.MA_20)
@@ -1061,21 +1112,35 @@ def ma_tangled_day(r):
     return cnt
 
 def get_analy_1(r):
-    date=r.date
-    stock_id=r.stock_id
-    stk=get_stock_data()
-    tdcc=get_tdcc_dist() 
-    total_stock_nums=tdcc.get_total_stock_num(r.stock_id,r.date)
-    df1=stk.get_df_by_enddate_num(stock_id,date-relativedelta(days=1),120)
-    ma_list = [5,21,89]
-    for ma in ma_list:
-        df1['MA_' + str(ma)] = df1['close'].rolling(window=ma,center=False,axis=0).mean()
+    buy=np.nan
+    day5=np.nan
+    day20=np.nan
+    day60=np.nan
     ma1_ma5=np.nan    
     ma1_ma21=np.nan    
     ma5_ma21=np.nan    
     ma5_angle=np.nan    
     ma21_angle=np.nan    
-    ma89_angle=np.nan    
+    ma89_angle=np.nan
+    value=np.nan      
+    date=r.date
+    stock_id=r.stock_id
+    
+    if len(stock_id)!=4:
+        return day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle,ma1_ma5,ma1_ma21,ma5_ma21
+    stk=get_stock_data()
+    tdcc=get_tdcc_dist() 
+    total_stock_nums=tdcc.get_total_stock_num(r.stock_id,r.date)
+    df1=stk.get_df_by_enddate_num(stock_id,date-relativedelta(days=1),120)
+    ma_list = [5,21,89]
+    try:
+        for ma in ma_list:
+            df1['MA_' + str(ma)] = df1['close'].rolling(window=ma,center=False,axis=0).mean()
+    except:
+        print(lno(),df1)
+        if len(df1.index)==0:
+            return day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle,ma1_ma5,ma1_ma21,ma5_ma21 
+    
     datanum=len(df1.index)    
     try:
         if datanum>=6:
@@ -1096,13 +1161,10 @@ def get_analy_1(r):
     edate= date + relativedelta(days=100)  
     df0=stk.get_df_by_startdate_enddate(stock_id,date,edate )
     #print(lno(),df0.close)
-    buy=np.nan
-    day5=np.nan
-    day20=np.nan
-    day60=np.nan
+    
     datanum=len(df0.index)
     if datanum==0:
-        return
+        return day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle,ma1_ma5,ma1_ma21,ma5_ma21
     if datanum>=2:
         buy=df0.at[1,'open']
     if datanum>=6 and buy!=0:
@@ -1119,9 +1181,8 @@ def get_analy_1(r):
             day60=cm1.calc_profit(buy,sell) 
     if datanum>=1:
         value=int(total_stock_nums*df0.at[0,'close']/100000000)
-    else:
-        value=np.nan    
-    #print(lno(),day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle)    
+       
+    #print(lno(),ma1_ma5,ma1_ma21,ma5_ma21)    
     return day5,day20,day60,value,ma5_angle,ma21_angle,ma89_angle,ma1_ma5,ma1_ma21,ma5_ma21
 
 def get_ma5_21(r):
@@ -1168,6 +1229,61 @@ def get_tdcc_dist_1000_400_buy_vol(r):
     tdcc=get_tdcc_dist() 
     b_diff,m_diff=tdcc.get_tdcc_1000_400(r.stock_id,r.date)
     return b_diff,m_diff
+def get_income_ratio(r):
+    YOY=np.nan
+    ratio1=np.nan
+    result=np.nan
+    income=get_sql_income()
+    date=r.date
+    ##TODO：
+    """
+    均線法: 當近三個月營收平均 > 近一年月營收平均   
+    突破法:24個月創新高最有用！ 
+    MOM 這個月跟上個月比較
+    QOQ 當前一季跟前季比（三個月加總）
+    YOY 當月跟去年同月相比
+    成長法:指標有兩個參數：(M=4 N=5)
+    當我們要平滑月營收曲線時，取最近的 M 個值平均，產生新的曲線
+    新的曲線連續 N 個月不斷變高
+    均線法　成長法　need test
+    """
+    if date.day<10:
+        date=date-relativedelta(months=1)
+    df =income.get_by_stockid_date_months(r.stock_id,date,12) 
+    if len(df.index)>=1:
+        df['當月營收']=df['當月營收'].astype(float)
+        df['去年當月營收']=df['去年當月營收'].astype(float)
+        YOY=df.iloc[0]['去年同月增減(%)']
+        if  len(df.index)>=12:  
+            try:
+                df['inavg3']=df['當月營收'].rolling(window=3,center=False,axis=0).mean()
+                df['inavg12']=df['當月營收'].rolling(window=12,center=False,axis=0).mean()
+                avg3=df.iloc[-1]['inavg3']
+                avg12=df.iloc[-1]['inavg12']
+                ratio1=avg3/avg12
+            except:
+                print(lno(),r.stock_id,df)
+                pass
+  
+            try:
+                df['inavg4']=df['當月營收'].rolling(window=4,center=False,axis=0).mean()
+                length=len(df.index)
+                result=1
+                #print(lno(),df)
+                for i in range(0,5):
+                    #print(lno(),i,df.iloc[-1-i]['inavg4'],df.iloc[-2-i]['inavg4'])
+                    if df.iloc[-1-i]['inavg4']<=df.iloc[-2-i]['inavg4']:
+                        result=0
+                        break
+            except:        
+                print(lno(),r.stock_id,df)
+                pass
+        #print(df['當月營收'].sum(),df['去年當月營收'].sum())
+        #print(df)
+        #print(lno(),ratio1,ratio2)
+    #sys.exit()    
+    return YOY,ratio1,result
+        
 def gen_analy_data(startdate,enddate,table_name,methods):
     stk,engine,con=init_sql()
     print(lno(),startdate,enddate,table_name,methods)
@@ -1181,10 +1297,12 @@ def gen_analy_data(startdate,enddate,table_name,methods):
             df[['外資','投信','自營商','三大法人']]=df.apply(func,axis=1,result_type="expand")
         elif func.__name__=='get_tdcc_dist_1000_400_buy_vol':
             df[['大戶買超','中戶買超']]=df.apply(func,axis=1,result_type="expand")  
+        elif func.__name__=='get_income_ratio':
+            df[['月營收YoY','月營收均線法','月營收成長法']]=df.apply(func,axis=1,result_type="expand")      
         else:    
             df[func.__name__]=df_apply_fun(df,func)    
     print(lno(),df)
-    df.to_sql(name='{}_v1'.format(table_name), con=con, if_exists='append', index=False,chunksize=10)
+    df.to_sql(name='{}_v1'.format(table_name), con=con, if_exists='replace', index=False,chunksize=10)
     raise
    
 def longred_analy_mode(startdate,enddate,mode):
@@ -1329,27 +1447,25 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             df =get_dfs_bydate(startdate,enddate)
             print (lno(),df)  
-    elif sys.argv[1]=='t1' :
+    elif sys.argv[1]=='f1' :
         if len(sys.argv)==4 :
+            ##TODO: f1 find stock via find_point_K
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             #method='VeryLongRed_10day'
-            method='test1'
-            findstock_test(startdate,enddate)
-    elif sys.argv[1]=='find' :
+            func=find_point_K
+            findstock_run_func(startdate,enddate,func)
+    elif sys.argv[1]=='f2' :
         if len(sys.argv)==4 :
-            ## TODO find_stock test1 generate
+            ##TODO: f2 find stock 投信買超２００張
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            method='VeryLongRed_10day'
-            find_stock=findstock()
-            day=0
-            nowdate=enddate
-            while   nowdate>=startdate :
-                nowdate = enddate - relativedelta(days=day)
-                print(lno(),nowdate)
-                find_stock.run(nowdate,method)
-                day=day+1            
+            #method='VeryLongRed_10day'
+            func=find_fund_buy
+            findstock_run_func(startdate,enddate,func)
+    elif sys.argv[1]=='f3' :  
+        #TODO: f3 find 投信買超 v2      
+        get_fund_buy_history()
     elif sys.argv[1]=='longred' :
         if len(sys.argv)==4 :
             ## TODO find_stock long red generate
@@ -1373,25 +1489,29 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             #method=[get_big3_buy_vol]
             #method=[get_tdcc_dist_1000_400_buy_vol] ## startdate 20150508
-            method=[get_ma5_21]
-            table_name='find_point_K'
+            #method=[get_income_ratio]
+            method=[mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day,get_income_ratio,get_big3_buy_vol]
+            #table_name='find_point_K'
+            table_name='find_fund_buy_v2'
             gen_analy_data(startdate,enddate,table_name,method)                         
     elif sys.argv[1]=='gg' :
         if len(sys.argv)==4 :
             ## TODO gg gen_analy_data
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            method=[get_analy_1,mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day]
-            table_name='find_point_K'
+            #method=[get_analy_1,mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day,get_income_ratio,get_big3_buy_vol]
+            method=[get_analy_1]
+            #method=[mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day,get_income_ratio,get_big3_buy_vol]
+            #table_name='find_point_K'
+            table_name='find_fund_buy_v2'
             gen_analy_data(startdate,enddate,table_name,method)                        
     elif sys.argv[1]=='r' :
         if len(sys.argv)==4 :
             ## TODO r report all 分析 大小市值 斜率
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            #find_stock=findstock()
-            method='find_point_K'
-            #method='find_point_K_tdcc'
+            #method='find_point_K'
+            method='find_fund_buy'
             find_stock_analy(method,startdate,enddate)
     elif sys.argv[1]=='r1' :
         if len(sys.argv)==4 :
@@ -1400,8 +1520,83 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             #find_stock=findstock()
             method='verylongred_v1'
+            
             find_stock_analy(method,startdate,enddate)                        
-    else:   
-        objdatetime=datetime.strptime(sys.argv[1],'%Y%m%d')
-        #down_fut_op_big3(objdatetime)
+    else: 
+        ##TODO: need verify 
+        ## 1股價站上月線2. KD低於20再上到50。3Macd翻正  
+        ## 資金流 high -prev_low  and  prev_high -low  https://xstrader.net/%e7%a8%8b%e5%bc%8f%e4%ba%a4%e6%98%93%e5%9c%a8%e5%9f%ba%e9%87%91%e6%8a%95%e8%b3%87%e4%b8%8a%e7%9a%84%e6%87%89%e7%94%a8%e4%b9%8b%e4%ba%94-mfo%e8%b3%87%e9%87%91%e6%b5%81%e6%8c%87%e6%a8%99%e7%bf%bb/
+        ##WVAD   https://xstrader.net/%e7%a8%8b%e5%bc%8f%e4%ba%a4%e6%98%93%e5%9c%a8%e5%9f%ba%e9%87%91%e6%8a%95%e8%b3%87%e4%b8%8a%e7%9a%84%e6%87%89%e7%94%a8%e4%b9%8b%e5%85%ad-k%e7%b7%9a%e7%a9%ba%e7%bf%bb%e5%a4%9a%ef%bc%88wvad%e6%8c%87/
+        ##K值  https://xstrader.net/%e7%a8%8b%e5%bc%8f%e4%ba%a4%e6%98%93%e5%9c%a8%e5%9f%ba%e9%87%91%e6%8a%95%e8%b3%87%e4%b8%8a%e7%9a%84%e6%87%89%e7%94%a8%e4%b9%8b%e4%b9%9dk%e5%80%bc%e4%ba%a4%e6%98%93%e6%b3%95%e5%89%87/
+        ##多頭 長下影線 收最高 需測是 https://xstrader.net/%e7%a8%8b%e5%bc%8f%e4%ba%a4%e6%98%93%e5%9c%a8%e5%9f%ba%e9%87%91%e6%8a%95%e8%b3%87%e4%b8%8a%e7%9a%84%e6%87%89%e7%94%a8%e4%b9%8b%e5%8d%81%e5%a4%9a%e9%a0%ad%e9%8e%9a%e5%ad%90/
+        ## https://xstrader.net/%e7%a8%8b%e5%bc%8f%e4%ba%a4%e6%98%93%e5%9c%a8%e5%9f%ba%e9%87%91%e6%8a%95%e8%b3%87%e4%b8%8a%e7%9a%84%e6%87%89%e7%94%a8%e4%b9%8b14%e7%aa%81%e7%a0%b4%e4%b8%ad%e9%95%b7%e7%b7%9a%e7%9a%84%e7%b3%be/
+        #葛拉罕提出了兩條挑股票的標準 1.總市值低於過去一年獲利的七倍 2.一個公司擁有的應該兩倍於它所欠下的。 https://xstrader.net/%e8%91%9b%e6%8b%89%e7%bd%95%e7%95%99%e4%b8%8b%e4%be%86%e7%9a%84%e6%8a%95%e8%b3%87%e6%99%ba%e6%85%a7/
+        """
+        單日交易次數 >平均交易(n day n=20))次數
+        強弱指標 :商品漲跌幅－對應大盤漲跌幅。 
+        
+        根據韋爾達的定義，真實區間為下列三項中的最大值：(測量價格波動性的方法)
+            當期最高價至最低價的幅度。
+            當期最低價與前期收盤價的幅度。
+            當期最高價至前期收盤價的幅度。
+        v13=(close-open)/close*100;//漲跌幅
+        v14=(close-low)/close*100;//
+        v15=(high-close)/close*100;
+        v16=(high-low)/close*100;
+        v17=(high-open)/close*100;
+        v18=(open-low)/close*100;  
+        https://xstrader.net/%e8%a9%a6%e8%91%97%e7%94%a8%e7%a8%8b%e5%bc%8f%e4%be%86%e6%8f%8f%e8%bf%b0%e5%9e%8b%e6%85%8b%e4%b9%8b%e4%b8%80/  
+        股價在近百日大跌五成但近十日主力卻逆向在收集籌碼的股票，把這個腳本去回測過去五年的所有股票，20天後出場，勝率超過六成，如果持有超過四十天，勝率更超過65%
+        k線選股
+        1.已過高點的優先
+        2.在上昇趨勢中的優先
+        3.比較輕盈的優先
+        4.有量的優先
+        5.打底很久剛冒出來的優先
+        
+        大跌過後
+        //過去60個交易日投信曾五天買超過2000張
+        //最近十天有六天以上，籌碼是收集的
+        //大盤站上月均
+        //最近三十天跌超過一成
+        大跌後出現什麼K線型態可以進場？ https://xstrader.net/%e5%a4%a7%e8%b7%8c%e5%be%8c%e5%87%ba%e7%8f%be%e4%bb%80%e9%ba%bck%e7%b7%9a%e5%9e%8b%e6%85%8b%e5%8f%af%e4%bb%a5%e9%80%b2%e5%a0%b4%ef%bc%9f/
+        參考 雞尾酒 https://xstrader.net/%e9%9b%9e%e5%b0%be%e9%85%92%e7%ad%96%e7%95%a5%e9%9b%b7%e9%81%94%e7%9a%84%e5%87%bd%e6%95%b8%e5%8c%96/        
+        TODO: 大跌過後 抄底k線 大跌就是最好的利多
+        https://xstrader.net/%e7%b6%9c%e5%90%88%e6%8a%84%e5%ba%95%e7%ad%96%e7%95%a5/
+        大盤多空函數 : ex 外資10日 買6日以上 算多頭
+        年底 投信做帳  https://xstrader.net/%e6%8a%95%e4%bf%a1%e5%b9%b4%e5%ba%95%e4%bd%9c%e5%b8%b3%e7%9a%84%e5%8f%af%e8%83%bd%e6%a8%99%e7%9a%84%e8%a6%81%e6%80%8e%e9%ba%bc%e6%8c%91/
+        飆股條件 https://xstrader.net/2017%e9%a3%86%e8%82%a1%e7%9a%84%e9%95%b7%e7%9b%b8-%e4%bd%8e%e5%83%b9%ef%bc%8c%e4%b8%ad%e5%b0%8f%e5%9e%8b%ef%bc%8c%e8%bd%89%e6%a9%9f%ef%bc%8c%e5%88%a9%e5%9f%ba%e3%80%82/
+        
+        """
+        pass
+"""
+https://xstrader.net/%e4%ba%a4%e6%98%93%e5%bf%83%e5%be%97%e7%ad%86%e8%a8%98/    
+一，關於看盤
+    看前30檔權值股的均線排列，如果大多數是多頭排列，就作多，如果大多數是空頭排列就作空
+    觀察前幾檔股王股后們的表現，如果股王股后們都不行了，這個盤也就不行了。
+    權值股的帶頭大哥們如果有漲停的，這盤繼續看多，如果有跌停的，後市堪慮。
+    開盤很重要，看開盤再來決定今天站在買方還是賣方。
+    期指常會做破底騙線.誘多誘空，不要太衝動，要看權值股是不是跟期指同樣破底
+    利多不漲或利空不跌都是反轉的前兆
+    盤中類股輪動的太厲害表示大家持股信心不強
+    要看出量的股票是漲還跌，如果出量的股票一堆是下殺有量，今天就謝謝收看了
+    拉上去回檔幅度小，撐在上面的時間長，再上的機率就大，拉上去後回檔幅度大，撐在上面的時間短，殺尾盤的機率就大
+    開盤強的股票一路收上去，今天就有搞頭，開盤強的股票普遍壓回，要小心
+["2330","2317","6505","2412","2882","1301","1303","1326","3008","2881","2454","2891","2002","1216","2311","2886","2912","2474","2382","2408","2892","5880","2357","2884","2207","4938","2880","2303","2105","2885"]
+定存股:卜蜂，一零四，裕融，中保，中菲，和泰車及好樂迪。
+//===========淨力指標==============
+var:c4(0);
+input:period2(10,"長期參數");
+ 
+value12=summation(high-close,period2);//上檔賣壓
+value13=summation(close-open,period2); //多空實績
+value14=summation(close-low,period2);//下檔支撐
+value15=summation(open-close[1],period2);//隔夜力道
+if close<>0
+then
+value16=(value13+value14+value15-value12)/close*100;
+0050 溢價指標 https://xstrader.net/0050%e6%ba%a2%e5%83%b9%e6%98%af%e5%ba%95%e9%83%a8%e6%8c%87%e6%a8%99%e5%97%8e/
+大戶 散戶人數 決定空頭與否 https://xstrader.net/%e5%be%9e%e5%8d%83%e5%bc%b5%e5%a4%a7%e6%88%b6%e6%95%b8%e5%a2%9e%e6%b8%9b%e7%9c%8b%e5%a4%a7%e6%88%b6%e6%9c%89%e5%90%a6%e8%90%bd%e8%b7%91%ef%bc%81/
+
+"""    
         

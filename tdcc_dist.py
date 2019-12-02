@@ -1041,7 +1041,7 @@ class tdcc_dist():
                 #print(lno(),df.iloc[0]['total_stock_num']
                 return float(df.iloc[0]['total_stock_num']*1000)
             except:
-                print(lno(),stock_id,'dist no data')
+                print(lno(),stock_id,date,'dist no data')
                 return 0
         else:    
             cols=['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29']

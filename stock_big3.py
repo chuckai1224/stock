@@ -523,8 +523,13 @@ class stock_big3:
     def get_df_by_date(self,date):
         table_name=date.strftime('%Y%m%d')
         cmd='SELECT * FROM "{}" '.format(table_name)
-        df= pd.read_sql(cmd, con=self.con, parse_dates=['date'])
-        return df
+        try:
+            df= pd.read_sql(cmd, con=self.con, parse_dates=['date'])
+            return df
+        except:
+            return pd.DataFrame()
+                
+        
     def get_df_by_id_date(self,stock_id,date):
         table_name=date.strftime('%Y%m%d')
         cmd='SELECT * FROM "{}" WHERE "證券代號"=="{}" '.format(table_name,stock_id)

@@ -8,6 +8,7 @@ from datetime import datetime
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+import numpy as np
 import requests
 from io import StringIO
 from inspect import currentframe, getframeinfo
@@ -56,7 +57,7 @@ def down_tse_monthly_report(year, month):
     #r.encoding = 'big5'
     #print(lno(),r.text)
     f = open(filename, "r")
-    dfs = pd.read_html(StringIO(f.read()), encoding='big5')
+    dfs = pd.read_html(StringIO(f.read()), encoding='big5hkscs')
     #for df in dfs:
     #    print(lno(),df)
     #print(lno(),dfs)
@@ -100,7 +101,7 @@ def down_tse_monthly_report(year, month):
     #r.encoding = 'big5'
     #print(lno(),r.text)
     f = open(filename, "r")
-    dfs = pd.read_html(StringIO(f.read()), encoding='big5')
+    dfs = pd.read_html(StringIO(f.read()), encoding='big5hkscs')
     df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
     print(lno(),df.columns)
     if 'levels' in dir(df.columns):
@@ -229,39 +230,47 @@ def down_otc_monthly_report(year, month):
     print(lno(),len(df))
     
     return 
-def gen_revenue_good_list(enddate):
-    #market='final'
-    revenue_csv='data/revenue/final/%d-%02d.csv'% (enddate.year-1911,enddate.month )
-    print(lno(),revenue_csv)
-    if os.path.exists(revenue_csv):
-        df_s = pd.read_csv(revenue_csv,encoding = 'utf-8',dtype= {'公司代號':str})
-        df_s.dropna(axis=1,how='all',inplace=True)
-        df_s.dropna(inplace=True)
-        #print(lno(),df_s)
-        #df=df_s[(df_s.loc[:,"去年同月增減(%)"] >= 20) | (df_s.loc[:,"前期比較增減(%)"] >= 15)]
+def gen_revenue_good_list(enddate,ver=1):
+    ## TODO: add sql need test
+    if ver==1:
+        in1=income()
+        df_s=in1.get_by_date(enddate)
         df=df_s[(df_s.loc[:,"去年同月增減(%)"] >= 20)].copy().reset_index(drop=True)
         prev_month = enddate - relativedelta(months=1)
-        prevf='data/revenue/final/%d-%02d.csv'% (prev_month.year-1911,prev_month.month )
-        if  os.path.exists(prevf):
-            df_p = pd.read_csv(prevf,encoding = 'utf-8',dtype= {'公司代號':str})
-            df_p.dropna(axis=1,how='all',inplace=True)
-            df_p.dropna(inplace=True)
-            p_b20_list=df_p[(df_p.loc[:,"去年同月增減(%)"] >= 20)]['公司代號'].tolist()
+        df_p=in1.get_by_date(prev_month)
+        p_b20_list=df_p[(df_p.loc[:,"去年同月增減(%)"] >= 20)]['公司代號'].tolist()
+        if len(df.index)==0 or len(df_p.index)==0:
+            return
+    else:    
+        revenue_csv='data/revenue/final/%d-%02d.csv'% (enddate.year-1911,enddate.month )
+        print(lno(),revenue_csv)
+        if os.path.exists(revenue_csv):
+            df_s = pd.read_csv(revenue_csv,encoding = 'utf-8',dtype= {'公司代號':str})
+            df_s.dropna(axis=1,how='all',inplace=True)
+            df_s.dropna(inplace=True)
+            #print(lno(),df_s)
+            #df=df_s[(df_s.loc[:,"去年同月增減(%)"] >= 20) | (df_s.loc[:,"前期比較增減(%)"] >= 15)]
+            df=df_s[(df_s.loc[:,"去年同月增減(%)"] >= 20)].copy().reset_index(drop=True)
+            prev_month = enddate - relativedelta(months=1)
+            prevf='data/revenue/final/%d-%02d.csv'% (prev_month.year-1911,prev_month.month )
+            if  os.path.exists(prevf):
+                df_p = pd.read_csv(prevf,encoding = 'utf-8',dtype= {'公司代號':str})
+                df_p.dropna(axis=1,how='all',inplace=True)
+                df_p.dropna(inplace=True)
+                p_b20_list=df_p[(df_p.loc[:,"去年同月增減(%)"] >= 20)]['公司代號'].tolist()
             #print(lno(),p_b20_list)
-            
-            
-        print(lno(),len(df))
-        df['pmonth']=True
-        for i in range (0,len(df)):
-            stock_no=df.iloc[i]['公司代號']
-            if stock_no in p_b20_list:
-                df.at[i,'pmonth']=False
-        df1=df[(df.loc[:,"pmonth"] == True)].copy().reset_index(drop=True)
-        print(lno(),len(df1))
-        df1=df1[['公司代號','公司名稱','去年同月增減(%)','前期比較增減(%)']]
-        #print(df1)
-        out_file='csv/rev_good.csv'
-        df1.to_csv(out_file,encoding='utf-8', index=False)
+            print(lno(),len(df))
+    df['pmonth']=True
+    for i in range (0,len(df)):
+        stock_no=df.iloc[i]['公司代號']
+        if stock_no in p_b20_list:
+            df.at[i,'pmonth']=False
+    df1=df[(df.loc[:,"pmonth"] == True)].copy().reset_index(drop=True)
+    print(lno(),len(df1))
+    df1=df1[['公司代號','公司名稱','去年同月增減(%)','前期比較增減(%)']]
+    #print(df1)
+    out_file='csv/rev_good.csv'
+    df1.to_csv(out_file,encoding='utf-8', index=False)
         
 def gen_revenue_final_file(enddate):
     _list=[]
@@ -283,37 +292,26 @@ def gen_revenue_final_file(enddate):
     out_file='data/revenue/final/%d-%02d.csv'% (enddate.year-1911,enddate.month )
     dfs.to_csv(out_file,encoding='utf-8', index=False)
     print(lno(),dfs)
-def get_revenue_by_stockid_bydate(stock_id,date):
-    revenue_csv='data/revenue/final/%d-%02d.csv'% (date.year-1911,date.month )
-    if os.path.exists(revenue_csv):
-        df_s = pd.read_csv(revenue_csv,encoding = 'utf-8',dtype= {'公司代號':str})
-        df_s.dropna(axis=1,how='all',inplace=True)
-        df_s.dropna(inplace=True)
-        df=df_s.loc[df_s['公司代號'] == stock_id]
-        if len(df)==1:
-            print(lno(),df)
-            return df
-        
+def check(r):
+    try:
+        #print(lno(),r[0],type(r[0]))
+        if type(r[0])!=str:
+            return 0
+        if len(r[0])!=4:
+            #print(lno(),r)
+            return 0
+        if float(r[2])==0:  ##當月營收為0
+            return 0
+        if float(r[9])==0 or float(r[9])==np.nan :  ##前期比較增減
+            return 0
+          
+        float(r[0])
 
-    return pd.DataFrame()            
-def get_revenue_by_stockid(stock_id,enddate):
-    month=0
-    print(lno(),type(stock_id),stock_id,enddate)
-    while   month<=3 :
-        nowdatetime = enddate - relativedelta(months=month) 
-        revenue_csv='data/revenue/final/%d-%02d.csv'% (nowdatetime.year-1911,nowdatetime.month )
-        if os.path.exists(revenue_csv):
-            df_s = pd.read_csv(revenue_csv,encoding = 'utf-8',dtype= {'公司代號':str})
-            df_s.dropna(axis=1,how='all',inplace=True)
-            df_s.dropna(inplace=True)
-            df=df_s.loc[df_s['公司代號'] == stock_id]
-            
-            if len(df)==1:
-                print(lno(),df)
-                return nowdatetime.month,df
+        return 1
+    except:
+        return 0
         
-        month=month+1       
-    return nowdatetime.month,pd.DataFrame()    
+        
 class income:
     def __init__(self):
         self.engine = create_engine('sqlite:///sql/income.db', echo=False)
@@ -321,7 +319,7 @@ class income:
         self.data_folder='data/revenue' 
         check_dst_folder(self.data_folder)
         
-    def download(self,date,dw=0):
+    def download(self,date,dw=1,ver=2):
         year=date.year
         month=date.month
         # 假如是西元，轉成民國
@@ -330,6 +328,7 @@ class income:
         headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
         index_list=[0,1] 
         markets=['sii','otc']
+        df_out=pd.DataFrame()
         for market in markets:
             for index in index_list:
                 #https://mops.twse.com.tw/nas/t21/sii/t21sc03_108_6_0.html    
@@ -347,45 +346,10 @@ class income:
                         # A chunk of 128 bytes
                         for chunk in r:
                             file.write(chunk)
-                dfs = pd.read_html(filename, encoding='big-5')
-                for df in dfs:
-                    #print(lno(),len(df),df)
-                    df1= df.copy() #.dropna(axis=1,how='all')
-                    inx=df1[(df1[1]=='公司名稱')].index.tolist()
-                    iix=df1[(df1[1]=='光寶科')].index.tolist()
-                    if len(iix):
-                        print(lno(),inx)
-                        print(lno(),df1)
-                    if len(inx)==1:
-                        if inx[0]==3:
-                            df1.columns=df.iloc[2].values.tolist()
-                            df1=df1.drop([0,1,2])
-                            #print(lno(),df1)
-                            #print(lno(),df1.shape)
-                            #print(lno(),df1.shape)
-                            #raise
-                        elif inx[0]==1:
-                            #print(lno(),df1)
-                            df1.columns=df.iloc[1].values.tolist()    
-                            df1=df1.drop([0,1])
-                            #df2=df2.dropna(axis=1,how='all').reset_index(drop=True)
-                            #print(lno(),df1)
-                            #print(lno(),df1.shape)
-                        else:
-                            print(lno(),inx)    
-                        
-                        #print(len(df.iloc[3])-df.iloc[3].isna().sum())
-                    else:         
-                        #if '公司名稱' in df.at[1,1]:
-                        
-                        pass
-                        
-                        print(lno(),df1.shape)
-                        print(lno(),inx)
-                    
-                raise    
+                dfs = pd.read_html(filename, encoding='big5hkscs')
+                #"""
                 df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
-                #print(lno(),df.columns)
+                print(lno(),df.columns)
                 if 'levels' in dir(df.columns):
                     df.columns = df.columns.get_level_values(1)
                 else:
@@ -393,25 +357,128 @@ class income:
                     #print(lno(),df.tail())
                     column_index = df.index[(df[0] == '公司代號')][0]
                     df.columns = df.iloc[column_index]
+                #print(lno(),len(df))
+                if ver==2:
+                    df['check']=df.apply(check,axis=1)
+                    df = df[df['check'] == 1]
+                    df.drop('check', axis=1, inplace = True)
+                    df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
+                    df['去年同月增減(%)'] = pd.to_numeric(df['去年同月增減(%)'], 'coerce')
+                    
+                else :    
+                    df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
+                    df = df[~df['當月營收'].isnull()]
+                    df = df[df['公司代號'] != '合計']
+                    
+                    if len(df.iloc[-1]['公司代號'])!=4:
+                        df=df[:-1]
+                if len(df)!=0:    
+                    df_out = pd.concat([df_out,df])     
                 print(lno(),len(df))
-                df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
-                df = df[~df['當月營收'].isnull()]
-                df = df[df['公司代號'] != '合計']
-                #time.sleep(5)
-                df.to_csv(out_file,encoding='utf-8', index=False)
+                #out_file='{}{}.csv'.format(market,index)
+                #df.to_csv(out_file,encoding='utf-8', index=False)
+                #"""
+        #df_out.columns=['公司代號','公司名稱','當月營收','上月營收','去年當月營收','上月比較增減(%)','去年同月增減(%)','當月累計營收','去年累計營收','前期比較增減(%)','dummy']    
+        #df_out.drop_duplicates(subset=['公司名稱'],keep='last',inplace=True)    
+        #out_file='_ttt.csv'
+        #df_out.to_csv(out_file,encoding='utf-8', index=False)
+        print(lno(),len(df_out))  
+        table_name=date.strftime('%Y%m')
+        print(lno(),table_name)
+        df_out.to_sql(name=table_name, con=self.con, if_exists='replace', index=False,chunksize=10)  
+    def get_by_stockid_date(self,stock_id,date):
+        table_name=date.strftime('%Y%m')
+        cmd='SELECT * FROM "{}" WHERE "公司代號" == "{}" '.format(table_name,stock_id)
+        try:
+            df = pd.read_sql(cmd, con=self.con) 
+            print(lno(),df)
+            return df
+        except :
+            print(lno(),'get_by_stockid_date read sql fail')
+            return pd.DataFrame()
+    def get_by_stockid_date_months(self,stock_id,date,mons):
+        df_out= pd.DataFrame()
+        for month in range (0,mons):
+            nowdate=date-relativedelta(months=month)
+            table_name=nowdate.strftime('%Y%m')
+            #print(lno(),table_name)
+            cmd='SELECT * FROM "{}" WHERE "公司代號" == "{}" '.format(table_name,stock_id)
+            try:
+                df = pd.read_sql(cmd, con=self.con) 
+                df['date']=nowdate
+                df_out=pd.concat([df_out,df])
+                #print(lno(),df)
+            except :
+                print(lno(),'get_by_stockid_date read sql fail')
+            
+        return df_out.sort_values(by='date', ascending=True).reset_index(drop=True)
+    def get_by_date(self,date):
+        table_name=date.strftime('%Y%m')
+        cmd='SELECT * FROM "{}" '.format(table_name)
+        try :
+            df = pd.read_sql(cmd, con=self.con) 
+            print(lno(),df)
+            return df
+        except :
+            print(lno(),'get_by_date read sql fail')
+            return pd.DataFrame()
     
-        pass    
+g_income=None    
+def get_revenue_by_stockid_bydate(stock_id,date,ver=1):
+    global g_income
+    if ver==1:
+        if g_income==None:
+            print(lno())
+            g_income=income()
+        income1= g_income   
+        df=income1.get_by_stockid_date(stock_id,date)   
+        return df
+    revenue_csv='data/revenue/final/%d-%02d.csv'% (date.year-1911,date.month )
+    if os.path.exists(revenue_csv):
+        df_s = pd.read_csv(revenue_csv,encoding = 'utf-8',dtype= {'公司代號':str})
+        df_s.dropna(axis=1,how='all',inplace=True)
+        df_s.dropna(inplace=True)
+        df=df_s.loc[df_s['公司代號'] == stock_id]
+        if len(df)==1:
+            print(lno(),df)
+            return df
+        
+
+    return pd.DataFrame()            
+def get_revenue_by_stockid(stock_id,enddate):
+    month=0
+    print(lno(),type(stock_id),stock_id,enddate)
+    while   month<=3 :
+        nowdatetime = enddate - relativedelta(months=month) 
+        df=get_revenue_by_stockid_bydate(stock_id,nowdatetime)
+        if len(df)==1:
+            print(lno(),df)
+            return nowdatetime.month,df
+        """
+        revenue_csv='data/revenue/final/%d-%02d.csv'% (nowdatetime.year-1911,nowdatetime.month )
+        if os.path.exists(revenue_csv):
+            df_s = pd.read_csv(revenue_csv,encoding = 'utf-8',dtype= {'公司代號':str})
+            df_s.dropna(axis=1,how='all',inplace=True)
+            df_s.dropna(inplace=True)
+            df=df_s.loc[df_s['公司代號'] == stock_id]
+            
+            if len(df)==1:
+                print(lno(),df)
+                return nowdatetime.month,df
+        """
+        month=month+1       
+    return nowdatetime.month,pd.DataFrame()    
+
 if __name__ == '__main__':
 
     
     if len(sys.argv)==1:
         startdate=datetime.today().date()
-        #
-        #income.download_otc(date)
-        down_tse_monthly_report(int(startdate.year),int(startdate.month)-1)
-        down_otc_monthly_report(int(startdate.year),int(startdate.month)-1)
-        #down_op_pc(startdate,startdate)
-        #down_optData(startdate,startdate)
+        
+        income.download(now_date) #new
+        #down_tse_monthly_report(int(startdate.year),int(startdate.month)-1)
+        #down_otc_monthly_report(int(startdate.year),int(startdate.month)-1)
+
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
         if len(sys.argv)==4 :
@@ -420,29 +487,17 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             now_date = startdate 
             while   now_date<=enddate :
+                income.download(now_date) #new
+                """
                 down_tse_monthly_report(int(now_date.year),int(now_date.month))
                 down_otc_monthly_report(int(now_date.year),int(now_date.month))
                 gen_revenue_final_file(now_date)
+                """
                 now_date = now_date + relativedelta(months=1)
    
         else :
               print (lno(),'func -p startdata enddate') 
-    elif sys.argv[1]=='-e' :
-        #print (lno(),len(sys.argv))
-        if len(sys.argv)==4 :
-            # 從今日往前抓一個月
-            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            now_start = startdate
-            now_end = now_start + relativedelta(days=1)
-            day=0
-            while   now_end<=enddate :
-                down_optData(now_start,now_end) 
-                now_start=now_end
-                now_end = now_start + relativedelta(days=1)
-            down_optData(now_start,enddate)     
-        else :
-              print (lno(),'func -p startdata enddate')           
+         
     elif sys.argv[1]=='good' :
         if len(sys.argv)==3 :
             #參數2:開始日期 
@@ -463,7 +518,19 @@ if __name__ == '__main__':
             #參數2:開始日期 
             stock_id=sys.argv[2]
             datatime=datetime.strptime(sys.argv[3],'%Y%m%d')
-            get_revenue_by_stockid(stock_id,datatime)
+            #get_revenue_by_stockid_bydate(stock_id,datatime)
+            #get_revenue_by_stockid(stock_id,datatime)
+            income1=income()
+            df=income1.get_by_date(datatime)
+            print(lno(),df)
+    elif sys.argv[1]=='get1' :
+        if len(sys.argv)==3 :
+            datatime=datetime.strptime(sys.argv[2],'%Y%m%d')
+            income1=income()
+            df=income1.get_by_date(datatime)
+            print(lno(),df)        
+            
+            
         else :
             print (lno(),'func -g date')        
     elif sys.argv[1]=='sql' :
