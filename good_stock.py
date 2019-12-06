@@ -294,6 +294,79 @@ def get_fund_buy_history():
     print(lno(),df_fin)
     
     #d=comm.get_tse_exchange_data(selday)
+def get_date_income_ratio(r):
+    ratio1=np.nan
+    result=np.nan
+    income=get_sql_income()
+    date=r.date-relativedelta(months=1)
+    df1=income.get_by_date(date)
+    #print(lno(),df1)
+    #raise
+    if not r.stock_id in df1['公司代號'].values.tolist():
+        return ratio1,result
+    print(lno(),r.stock_id)
+    df =income.get_by_stockid_date_months(r.stock_id,date,12) 
+    if len(df.index)>=1:
+        df['當月營收']=df['當月營收'].astype(float)
+        df['去年當月營收']=df['去年當月營收'].astype(float)
+        YOY=df.iloc[0]['去年同月增減(%)']
+        if  len(df.index)>=12:  
+            try:
+                df['inavg3']=df['當月營收'].rolling(window=3,center=False,axis=0).mean()
+                df['inavg12']=df['當月營收'].rolling(window=12,center=False,axis=0).mean()
+                avg3=df.iloc[-1]['inavg3']
+                avg12=df.iloc[-1]['inavg12']
+                ratio1=avg3/avg12
+            except:
+                print(lno(),r.stock_id,df)
+                pass
+  
+            try:
+                df['inavg4']=df['當月營收'].rolling(window=4,center=False,axis=0).mean()
+                length=len(df.index)
+                result=1
+                #print(lno(),df)
+                for i in range(0,5):
+                    #print(lno(),i,df.iloc[-1-i]['inavg4'],df.iloc[-2-i]['inavg4'])
+                    if df.iloc[-1-i]['inavg4']<=df.iloc[-2-i]['inavg4']:
+                        result=0
+                        break
+            except:        
+                print(lno(),r.stock_id,df)
+                pass
+        #print(df['當月營收'].sum(),df['去年當月營收'].sum())
+        #print(df)
+        #print(lno(),ratio1,ratio2)
+    #sys.exit()    
+    return ratio1,result    
+def gen_buy_list(date):
+    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    con = engine.connect()
+    markets=['tse','otc']
+    d1=comm.exchange_data('tse').get_df_date_parse(date)
+    d1['market']='tse'
+    d2=comm.exchange_data('otc').get_df_date_parse(date)
+    d2['market']='otc'
+    d=pd.concat([d1,d2])
+    if len(d.index)==0:
+        return 
+    d['投信買超']=d.apply(find_fund_buy,axis=1)  
+    d[['月營收均線法','月營收成長法']]=d.apply(get_date_income_ratio,axis=1,result_type="expand")  
+    d1=d[(d['月營收均線法']>=1)|(d['月營收成長法']>=1) |(d['投信買超']>=200000) ].reset_index(drop=True)
+    
+    #d1=data[(data[var1]==1)&(data[var2]>10)]
+    #d['投信買超']=d.apply(find_fund_buy,axis=1)  
+    print(lno(),d1)
+    if len(d1.index):
+        table_name='good_buy_{}'.format(date.strftime('%Y%m%d'))
+        d1.to_sql(name=table_name, con=con, if_exists='replace', index=False,chunksize=10)  
+    
+   
+    #if len(df1.index):
+    #    df_fin=pd.concat([df_fin,df1])
+    #df_fin.to_sql(name='find_fund_buy_v2', con=con, if_exists='replace', index=False,chunksize=10)       
+    #print(lno(),df_fin)
+        
 class findstock:
     def __init__(self):
         #self.rundate=rundate
@@ -954,7 +1027,7 @@ def find_fund_buy(r):
             fund_buy=df.iloc[0]['投信買賣超股數']
             #print(lno(),fund_buy)
             if fund_buy>200*1000:
-                return 1
+                return fund_buy
             return 
     except:
         print(lno())
@@ -1466,6 +1539,10 @@ if __name__ == '__main__':
     elif sys.argv[1]=='f3' :  
         #TODO: f3 find 投信買超 v2      
         get_fund_buy_history()
+    elif sys.argv[1]=='ff' :  
+        #TODO: ff find 投信買超 200  營收成長 營收平均    
+        startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        gen_buy_list(startdate)    
     elif sys.argv[1]=='longred' :
         if len(sys.argv)==4 :
             ## TODO find_stock long red generate
@@ -1489,8 +1566,8 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             #method=[get_big3_buy_vol]
             #method=[get_tdcc_dist_1000_400_buy_vol] ## startdate 20150508
-            #method=[get_income_ratio]
-            method=[mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day,get_income_ratio,get_big3_buy_vol]
+            method=[get_analy_1]
+            #method=[mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day,get_income_ratio,get_big3_buy_vol]
             #table_name='find_point_K'
             table_name='find_fund_buy_v2'
             gen_analy_data(startdate,enddate,table_name,method)                         
@@ -1511,7 +1588,7 @@ if __name__ == '__main__':
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             #method='find_point_K'
-            method='find_fund_buy'
+            method='find_fund_buy_v2'
             find_stock_analy(method,startdate,enddate)
     elif sys.argv[1]=='r1' :
         if len(sys.argv)==4 :

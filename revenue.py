@@ -346,35 +346,39 @@ class income:
                         # A chunk of 128 bytes
                         for chunk in r:
                             file.write(chunk)
-                dfs = pd.read_html(filename, encoding='big5hkscs')
-                #"""
-                df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
-                print(lno(),df.columns)
-                if 'levels' in dir(df.columns):
-                    df.columns = df.columns.get_level_values(1)
-                else:
-                    df = df[list(range(0,10))]
-                    #print(lno(),df.tail())
-                    column_index = df.index[(df[0] == '公司代號')][0]
-                    df.columns = df.iloc[column_index]
-                #print(lno(),len(df))
-                if ver==2:
-                    df['check']=df.apply(check,axis=1)
-                    df = df[df['check'] == 1]
-                    df.drop('check', axis=1, inplace = True)
-                    df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
-                    df['去年同月增減(%)'] = pd.to_numeric(df['去年同月增減(%)'], 'coerce')
-                    
-                else :    
-                    df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
-                    df = df[~df['當月營收'].isnull()]
-                    df = df[df['公司代號'] != '合計']
-                    
-                    if len(df.iloc[-1]['公司代號'])!=4:
-                        df=df[:-1]
-                if len(df)!=0:    
-                    df_out = pd.concat([df_out,df])     
-                print(lno(),len(df))
+                try:                
+                    dfs = pd.read_html(filename, encoding='big5hkscs')
+                    #"""
+                    df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
+                
+                    print(lno(),df.columns)
+                    if 'levels' in dir(df.columns):
+                        df.columns = df.columns.get_level_values(1)
+                    else:
+                        df = df[list(range(0,10))]
+                        #print(lno(),df.tail())
+                        column_index = df.index[(df[0] == '公司代號')][0]
+                        df.columns = df.iloc[column_index]
+                    #print(lno(),len(df))
+                    if ver==2:
+                        df['check']=df.apply(check,axis=1)
+                        df = df[df['check'] == 1]
+                        df.drop('check', axis=1, inplace = True)
+                        df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
+                        df['去年同月增減(%)'] = pd.to_numeric(df['去年同月增減(%)'], 'coerce')
+                        
+                    else :    
+                        df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
+                        df = df[~df['當月營收'].isnull()]
+                        df = df[df['公司代號'] != '合計']
+                        
+                        if len(df.iloc[-1]['公司代號'])!=4:
+                            df=df[:-1]
+                    if len(df)!=0:    
+                        df_out = pd.concat([df_out,df])     
+                    print(lno(),len(df))
+                except:
+                    pass    
                 #out_file='{}{}.csv'.format(market,index)
                 #df.to_csv(out_file,encoding='utf-8', index=False)
                 #"""
@@ -417,7 +421,7 @@ class income:
         cmd='SELECT * FROM "{}" '.format(table_name)
         try :
             df = pd.read_sql(cmd, con=self.con) 
-            print(lno(),df)
+            #print(lno(),df)
             return df
         except :
             print(lno(),'get_by_date read sql fail')
@@ -471,7 +475,7 @@ def get_revenue_by_stockid(stock_id,enddate):
 
 if __name__ == '__main__':
 
-    
+    income=income()
     if len(sys.argv)==1:
         startdate=datetime.today().date()
         
