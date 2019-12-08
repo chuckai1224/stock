@@ -295,20 +295,26 @@ def gen_revenue_final_file(enddate):
 def check(r):
     try:
         #print(lno(),r[0],type(r[0]))
-        if type(r[0])!=str:
+        #print(lno(),r)
+        if type(r['公司代號'])!=str:
             return 0
-        if len(r[0])!=4:
-            #print(lno(),r)
+        if len(r['公司代號'])!=4:
+            #print(lno(),r[0],type(r[0]))
             return 0
-        if float(r[2])==0:  ##當月營收為0
+        #print(lno(),r['當月營收'],type(r['當月營收']))      
+        if float(r['當月營收'])==0:  ##當月營收為0
+            #print(lno(),r[0],type(r[0]))
             return 0
-        if float(r[9])==0 or float(r[9])==np.nan :  ##前期比較增減
+        #print(lno(),r[0],type(r[0]))          
+        if float(r['前期比較增減(%)'])==0 or float(r['前期比較增減(%)'])==np.nan :  ##前期比較增減
+            #print(lno(),r[0],type(r[0]))    
             return 0
-          
-        float(r[0])
+        
+        float(r['公司代號'])
 
         return 1
     except:
+        #print(lno(),r[0],type(r[0]))
         return 0
         
         
@@ -351,17 +357,22 @@ class income:
                     #"""
                     df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
                 
-                    print(lno(),df.columns)
+                    #print(lno(),df.columns)
+                    print(lno(),df.shape)
+                    #print(lno(),df.head())
                     if 'levels' in dir(df.columns):
+                        #print(lno(),df.columns.get_level_values(1))
+                        #print(lno(),df.columns.get_level_values(0))
                         df.columns = df.columns.get_level_values(1)
                     else:
                         df = df[list(range(0,10))]
-                        #print(lno(),df.tail())
+                        print(lno(),df.tail())
                         column_index = df.index[(df[0] == '公司代號')][0]
                         df.columns = df.iloc[column_index]
-                    #print(lno(),len(df))
+                    print(lno(),len(df))
                     if ver==2:
                         df['check']=df.apply(check,axis=1)
+                        #print(lno(),df.head())
                         df = df[df['check'] == 1]
                         df.drop('check', axis=1, inplace = True)
                         df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
@@ -408,12 +419,18 @@ class income:
             #print(lno(),table_name)
             cmd='SELECT * FROM "{}" WHERE "公司代號" == "{}" '.format(table_name,stock_id)
             try:
-                df = pd.read_sql(cmd, con=self.con) 
+                df = pd.read_sql(cmd, con=self.con)
                 df['date']=nowdate
-                df_out=pd.concat([df_out,df])
+                if len(df_out.index)==0:
+                    #print(lno(),df_out,df)
+                    df_out=df
+                else:
+                    #print(lno(),df_out.head(1))
+                    #print(lno(),df.head(1))
+                    df_out=pd.concat([df_out,df])
                 #print(lno(),df)
             except :
-                print(lno(),'get_by_stockid_date read sql fail')
+                print(lno(),stock_id,table_name,'get_by_stockid_date read sql fail')
             
         return df_out.sort_values(by='date', ascending=True).reset_index(drop=True)
     def get_by_date(self,date):

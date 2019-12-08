@@ -404,6 +404,7 @@ class stock_big3:
             else :    
                 url='https://www.tpex.org.tw/web/stock/3insti/daily_trade/3itrade_print.php?l=zh-tw&se=EW&t=D&d=%d/%02d/%02d&s=0,asc,0'%(int(date.year)-1911,int(date.month),int(date.day))                
         if download==1:
+            check_dst_folder(os.path.dirname(htmlfile))
             response = requests.get(url)
             if response.status_code == 200:
                 with open(htmlfile, 'wb') as file:

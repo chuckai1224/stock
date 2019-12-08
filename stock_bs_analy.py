@@ -110,7 +110,7 @@ def calc_spwr(row):
     return s_pwr
 def calc_stock_bs(date,debug=1):
     out_list=[]
-    df_tse_day=comm.get_tse_exchange_data(date)
+    df_tse_day=comm.get_tse_exchange_data(date,ver=1)
     if len(df_tse_day)==0:
         return []
     print(lno(),df_tse_day)
@@ -128,7 +128,7 @@ def calc_stock_bs(date,debug=1):
     out_list.append(total_buy)    
     out_list.append(total_sell)    
     #print(lno(),'tse',total_buy,total_sell)
-    df_otc_day=comm.get_otc_exchange_data(date)
+    df_otc_day=comm.get_otc_exchange_data(date,ver=1)
     if len(df_otc_day)==0:
         return []
     df=df_otc_day
@@ -154,7 +154,7 @@ def gen_stock_bs_oneday(date,debug=1):
         return 
     res=[]
     res.append(_list)
-    #print(lno(),res)
+    print(lno(),res)
     labels = ['日期','tse_buy', 'tse_sell', 'otc_buy', 'otc_sell']
     res_df = pd.DataFrame.from_records(res, columns=labels)   
     print (lno(),res_df)    

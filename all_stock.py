@@ -1550,7 +1550,8 @@ def generate_stock_html_mode2(enddate,practice=0,mode='股job',in_df=[],debug=1)
         #a=[['2308','台達電']]
         #d = pd.DataFrame(a)
         d.columns=['公司代號','公司名稱']
-    otc_df=comm.get_otc_exchange_data(enddate)
+    otc_df=comm.get_otc_exchange_data(enddate,ver=1)
+    #print(lno(),otc_df)
     otc_list=otc_df['stock_id'].values.tolist()
     check_dst_folder('out/%d%02d%02d'%(enddate.year,enddate.month,enddate.day))
     #print(lno(),otc_list)
@@ -1705,7 +1706,7 @@ def generate_stock_html_mode2(enddate,practice=0,mode='股job',in_df=[],debug=1)
             'no-outline': None
             } 
             
-    pdf.from_file(filen, PdfFilename,options=options)
+    #pdf.from_file(filen, PdfFilename,options=options)
 
     """
     app = QApplication(sys.argv)

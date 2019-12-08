@@ -615,18 +615,19 @@ def time64_Date_str(date):
     return d
 
             
-def get_tse_exchange_data(selday,debug=0):
-    """
-    try:
-        exc=exchange_data('tse')
-        df=exc.get_df(selday)
-        if len(df):
-            df['date']=selday
-            return df
-    except:
-        pass
+def get_tse_exchange_data(selday,ver=0,debug=0):
+    #"""
+    if ver==1:
+        try:
+            exc=exchange_data('tse')
+            df=exc.get_df(selday)
+            if len(df):
+                df['date']=selday
+                return df
+        except:
+            pass
     #date_str = selday.strftime('%Y/%m/%d')
-    """
+    #"""
     filename ='{}/exchange/tse/{}'.format(datafolder(),selday.strftime('%Y%m%d'))
     dtypes= {'stock_id': 'str','vol':'str', 'cash': 'str','open':'str', 'high': 'str','low':'str', 'close': 'str','diff':'str'}  
     if debug==1:
@@ -644,18 +645,19 @@ def get_tse_exchange_data(selday,debug=0):
             print (lno(),filename,"not exit pls check")
         return pd.DataFrame()
     
-def get_otc_exchange_data(selday,debug=0):
+def get_otc_exchange_data(selday,ver=0,debug=0):
     #date_str = selday.strftime('%Y/%m/%d')
-    """
-    try:
-        exc=exchange_data('otc')
-        df=exc.get_df(selday)
-        if len(df):
-            df['date']=selday
-            return df
-    except:
-        pass
-    """    
+    #"""
+    if ver==1:
+        try:
+            exc=exchange_data('otc')
+            df=exc.get_df(selday)
+            if len(df):
+                df['date']=selday
+                return df
+        except:
+            pass
+    #"""    
     #filename ='csv/data/otc/{}'.format(selday.strftime('%Y%m%d'))
     dtypes= {'stock_id': 'str','vol':'str', 'cash': 'str','open':'str', 'high': 'str','low':'str', 'close': 'str','diff':'str'}  
     filename ='{}/exchange/otc/{}'.format(datafolder(),selday.strftime('%Y%m%d'))

@@ -52,6 +52,10 @@ def download_otc_sectinx(dataday):
     if len(dfs)==0:
         return
     #將資料集指向gold參數
+    for df in dfs:
+        print(lno(),df.shape,df.head())
+    if dfs[0].shape[0]<=1:
+        return    
     gold=dfs[0]
     gold=gold.dropna(axis=1,thresh=3)
     
@@ -241,6 +245,13 @@ def get_otc_power_inx(dataday,mode):
         #return df1['name'].values.tolist()
     else :
         return []
+def download_job(startdate,enddate):
+    nowdatetime=startdate
+    while   nowdatetime<=enddate :
+        #print(lno(),Time64ToTwdate(nowdatetime))
+        download_otc_sectinx(nowdatetime)
+        download_tse_sectinx(nowdatetime)
+        nowdatetime=nowdatetime+ relativedelta(days=1) 
 if __name__ == '__main__':
     #print (lno(),len(sys.argv))
     if len(sys.argv)>1 and sys.argv[1]=='d' :

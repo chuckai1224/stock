@@ -414,7 +414,16 @@ class Crawler():
     def get_stocks_index(self, date_tuple):
         print('Crawling {}'.format(date_tuple))
         self._get_stocks_index_data(date_tuple)
+def download_job(startdate,enddate):
+    if startdate==enddate:
+        first_day=startdate
+        crawler = Crawler()
+        crawler.get_data((first_day.year, first_day.month, first_day.day))
+        comm.exchange2sql(first_day,first_day)
+        #print(lno(),first_day)
         
+        comm.insert_daily_stock_data(first_day)
+        crawler.get_stocks_index((first_day.year, first_day.month, first_day.day))       
 
 def main():
     # Set logging

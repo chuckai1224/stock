@@ -713,7 +713,20 @@ def download_dist_to_csv(stock_no,SCA_DATE,save_file):
         WriteListToCSV(save_file,csv_columns,dist_list)
     return dist_list                        
     
-def get_tdcc_dist_all_df_bydate_num(stock_no,enddate,num,debug=0):
+def get_tdcc_dist_all_df_bydate_num(stock_no,enddate,num,debug=0,ver=1):
+    if ver==1:
+        tdcc=tdcc_dist()
+        df=tdcc.get_df(stock_no)
+        oo=['<1','1-5','5-10','10-15','15-20','20-30','30-40','40-50','50-100','100-200','200-400','400-600','600-800','800-1000','>1000']
+        df=df[df['date']<=enddate].tail(num).sort_values(by='date', ascending=False).reset_index(drop=True)
+        o_list=[]
+        for i in range(0,len(df)):
+            #r=df.iloc[i]
+            #print(lno(),df.iloc[i][1:16].values.tolist())
+            #print(lno(),df.iloc[i][16:31].values.tolist())
+            o_list.append([oo,df.iloc[i][1:16].values.tolist(),df.iloc[i][16:31].values.tolist()])
+        #print(lno(),o_list)
+        return o_list
     tdcc_date_path='csv/tdcc_date.csv'
     date_df = pd.read_csv(tdcc_date_path,encoding = 'big5',header=None)
     date_df.dropna(axis=1,how='all',inplace=True)
@@ -728,7 +741,7 @@ def get_tdcc_dist_all_df_bydate_num(stock_no,enddate,num,debug=0):
     
     o_list=[]
     for i in range(0, len(sample_df)):
-        #print (lno(),sample_df.iloc[i]['date_str'])
+        print (lno(),sample_df.iloc[i]['date_str'])
         tdcc_dist_file=('data/csv/dist/%(stock)s/%(ymd)s_dist.csv')% {'stock': stock_no,'ymd':sample_df.iloc[i]['date_str'] }
         #print (lno(),tdcc_dist_file)
         try :
@@ -746,9 +759,25 @@ def get_tdcc_dist_all_df_bydate_num(stock_no,enddate,num,debug=0):
             print(lno(),dist_df['人數'].tolist())
             print(lno(),dist_df['股數'].tolist())
         o_list.append([dist_df['持股分級'].tolist(),dist_df['人數'].tolist(),dist_df['股數'].tolist()])
-    #print (lno(),o_list)
+    print (lno(),o_list)
     return o_list
-def get_tdcc_dist_df_bydate_num(stock_no,enddate,num,debug=0):
+def get_tdcc_dist_df_bydate_num(stock_no,enddate,num,ver=1,debug=0):
+    if ver==1:
+        tdcc=tdcc_dist()
+        df=tdcc.get_df(stock_no)
+        df=df[df['date']<=enddate].tail(num).sort_values(by='date', ascending=False).reset_index(drop=True)
+        columns=['<1','1-5','5-10','10-15','15-20','20-30','30-40','40-50','50-100','100-200','200-400','400-600','600-800','800-1000','>1000']
+        col2=['人數','股數','比例(%)']
+        outcols=['date']
+        for k in col2:
+            for j in columns:
+                #print(lno(),j+k)
+                outcols.append(j+k)
+                
+        #print(lno(),outcols)        
+        df.columns=outcols        
+        #print(lno(),df)
+        return  df
     tdcc_date_path='csv/tdcc_date.csv'
     date_df = pd.read_csv(tdcc_date_path,encoding = 'big5',header=None)
     date_df.dropna(axis=1,how='all',inplace=True)
@@ -1029,7 +1058,7 @@ class tdcc_dist():
         return df
         pass
     def get_total_stock_num(self,stock_id,date):
-        ##TODO get total stock sql
+        ## return 股數 not 張數
         enddate=date+relativedelta(days=7)
         startdate=date-relativedelta(months=3)
         old_date=datetime(2018,5,4)
@@ -1119,7 +1148,7 @@ class tdcc_dist():
         enddate= date + relativedelta(days=1)    
         print(lno(),type(date), date)    
         #print(lno(),type(date_fix2), date_fix2)    
-        ll=comm.get_tse_exchange_data(date)['stock_id'].values.tolist()+comm.get_otc_exchange_data(date)['stock_id'].values.tolist()
+        ll=comm.get_tse_exchange_data(date,ver=1)['stock_id'].values.tolist()+comm.get_otc_exchange_data(date,ver=1)['stock_id'].values.tolist()
         """
         if type(date)==datetime:
             date='%s'%(date.strftime('%Y%m%d'))
@@ -1518,10 +1547,14 @@ if __name__ == '__main__':
     elif sys.argv[1]=="-t" :
         stock_no=sys.argv[2]
         dataday=datetime.strptime(sys.argv[3],'%Y%m%d')
+        """
         list=get_tdcc_dist_all_df_bydate_num(stock_no,dataday,2)
         #print(lno(),list[0],list[1])
         filen='out/%s_%d%02d%02d.png'%(stock_no,dataday.year,dataday.month,dataday.day)
         tdcc_dist_plot(stock_no,dataday,list[0],list[1],filen)
+        """
+        df=get_tdcc_dist_df_bydate_num(stock_no,dataday,2)
+        print(lno(),df)
     elif sys.argv[1]=="get" :
         dataday=datetime.strptime(sys.argv[2],'%Y%m%d')
         test_tdcc_dist_by_date(dataday)    

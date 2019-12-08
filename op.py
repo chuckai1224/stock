@@ -1566,11 +1566,36 @@ def op_plot_v1(date,debug=0):
             'encoding': "BIG5",
             'no-outline': None
             } 
-            
-        pdf.from_file(filen, PdfFilename,options=options)
+        try:    
+            pdf.from_file(filen, PdfFilename,options=options)
+        except:
+            print(lno(),'pdf output need win')
+            pass    
         #df.set_index('到期月份(週別)',drop=True)
         #print(lno(),df)
-    
+def op_down_load_job(startdate,enddate):
+    now_start = startdate
+    now_end = now_start + relativedelta(days=30)
+    day=0
+    while   now_end<=enddate :
+        down_op_pc(now_start,now_end) 
+        down_optData(now_start,now_end) 
+        #op_plot(startdate) 
+        now_start=now_end
+        now_end = now_start + relativedelta(days=30)
+    down_op_pc(now_start,enddate)     
+    down_optData(now_start,enddate)
+    now_date = enddate
+    day=0
+    while   now_date>=startdate :
+        now_date = enddate - relativedelta(days=day)
+        fut.down_data(now_date)
+        down_opDelta(now_date) 
+        op_plot_v1(now_date)
+        gen_op_fin(startdate)                 
+        day=day+1    
+
+
 if __name__ == '__main__':
 
     
@@ -1611,7 +1636,7 @@ if __name__ == '__main__':
                 now_date = enddate - relativedelta(days=day)
                 fut.down_data(now_date)
                 down_opDelta(now_date) 
-                op_plot(now_date)
+                op_plot_v1(now_date)
                 gen_op_fin(startdate)                 
                 day=day+1
         else :

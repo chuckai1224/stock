@@ -67,7 +67,7 @@ def down_taiwan_dollar(startdate,enddate):
         
         df_s.drop_duplicates(subset=['日期'],keep='first',inplace=True)
         df_s=df_s.sort_values(by=['日期'], ascending=False)
-        
+        print(lno(),df_s.head())
         df_s.to_csv(out_file,encoding='utf-8', index=False)
         
     else :

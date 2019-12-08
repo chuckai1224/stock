@@ -514,6 +514,7 @@ def show_twii_v1(objdatetime,debug=0):
         return 
     if debug==1:
         print(lno(),df)
+        print(lno(),df.columns)
     
     startdate=df.iloc[-1]['日期']
     enddate=df.iloc[0]['日期']
@@ -699,7 +700,7 @@ def get_stock_tse_df(stock_id,df):
     #df1=df1.fillna(method='ffill') 
     #print (lno(),df1)
     return df1
-def get_stock_long_short_list(_list,date,debug=0):     
+def get_stock_long_short_list(_list,date,debug=0,ver=1):     
     long1=0
     short1=0
     long2=0
@@ -708,14 +709,19 @@ def get_stock_long_short_list(_list,date,debug=0):
     short3=0
     ll=0
     ss=0
-    #stk=comm.stock_data()
+    if ver==1:
+        stk=comm.stock_data()
     for i in  _list:    
         if len(i)!=4:
             continue
         #print(i)
-        _df=comm.get_stock_df(i)
-        #_df=stk.get_df(i)
-        df_stk=comm.get_df_bydate_nums(_df,21,date)
+        if ver==1:
+            _df=stk.get_df_by_date_day(i,date,21)
+            df_stk=_df.tail(21).reset_index(drop=True)
+            #print(lno(),df_stk)
+        else:
+            _df=comm.get_stock_df(i)
+            df_stk=comm.get_df_bydate_nums(_df,21,date)
         if debug==3:
             print(lno(),i,len(df_stk))
         if len(df_stk)!=21 :
@@ -766,7 +772,7 @@ def get_day_twii_fin(seldate,debug=1):
         if debug==1:
             print(lno(),"test")
         df_s = pd.read_csv(fin_file,encoding = 'utf-8')
-        df_s.dropna(axis=1,how='all',inplace=True)
+        #df_s.dropna(axis=1,how='all',inplace=True)
         #df_s.dropna(inplace=True)
         if debug==1:
             print(lno(),"test")
@@ -790,7 +796,7 @@ def get_days_twii_fin(seldate,cnt,debug=1):
         if debug==1:
             print(lno(),"test")
         df_s = pd.read_csv(fin_file,encoding = 'utf-8')
-        df_s.dropna(axis=1,how='all',inplace=True)
+        #df_s.dropna(axis=1,how='all',inplace=True)
         #df_s.dropna(inplace=True)
         df_s['日期']=[date_sub2time64(x) for x in df_s['日期'] ]
         
@@ -902,12 +908,12 @@ def check_twii_fin(seldata,debug=1,regen=0):
     #print(lno(),otc_list)        
     """
     tStart = time.time()
-    tse_l1,tse_s1,tse_l2,tse_s2,ll0,ss0=get_stock_long_short_list(comm.get_tse_exchange_data(seldata)['stock_id'].values.tolist(),seldata) 
+    tse_l1,tse_s1,tse_l2,tse_s2,ll0,ss0=get_stock_long_short_list(comm.get_tse_exchange_data(seldata,ver=1)['stock_id'].values.tolist(),seldata) 
     tEnd = time.time()
     print ("It cost %.3f sec" % (tEnd - tStart))   
     #raise
     
-    otc_l1,otc_s1,otc_l2,otc_s2,ll1,ss1=get_stock_long_short_list(comm.get_otc_exchange_data(seldata)['stock_id'].values.tolist(),seldata) 
+    otc_l1,otc_s1,otc_l2,otc_s2,ll1,ss1=get_stock_long_short_list(comm.get_otc_exchange_data(seldata,ver=1)['stock_id'].values.tolist(),seldata) 
     if debug==1:
         print(lno(), df1.tail(2))            
         #print(lno(), tse_list,df_tse.dtypes)  
@@ -974,7 +980,7 @@ def check_twii_fin(seldata,debug=1,regen=0):
     out_list.append(tmp1)
     labels = ['日期','指數', '量', '5ma趨勢','20ma趨勢', '均差', '上市多頭家數','上市空頭家數','上櫃多頭家數','上櫃空頭家數','外資買超','op OI','匯率','特殊信號','上市強勢主流','上櫃強勢主流','上市弱勢主流','上櫃弱勢主流','買權留倉最大量','買權留倉次量','賣權留倉最大量','賣權留倉次量','買權留倉增加最多','賣權留倉增加最多','多頭家數','空頭家數']
     df_fin = pd.DataFrame.from_records(out_list, columns=labels)
-
+    print(lno(),fin_file)
     if os.path.exists(fin_file): 
         df_s = pd.read_csv(fin_file,encoding = 'utf-8')
         #df_s.dropna(axis=1,how='all',inplace=True)
@@ -1008,7 +1014,7 @@ def generate_twii_fin_html(startdate,enddate,debug=0):
 
         day=day+1
         nowdatetime = enddate - relativedelta(days=day)        
-    
+
 if __name__ == '__main__':
     print (lno(),sys.path[0])
     #get_cur_twii_list(datetime.today())

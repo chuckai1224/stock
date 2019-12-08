@@ -302,7 +302,7 @@ def download_big8():
     # Check if the response is ok (200)
     if response.status_code == 200:
         # Open file and write the content
-        print(len(response.content))
+        #print(lno(),len(response.content))
         if len(response.content)<10:
             return 0
         with open(filename, 'wb') as file:
@@ -323,20 +323,22 @@ def download_big8():
     df=dfs[0].copy()
     if df.iloc[1][0]=='日期':
         df.drop([0,1],inplace=True)
-    """    
+    """
+    #df = pd.concat([df for df in dfs if df.shape[1] == 3)
+    #print(lno(),df.shape,df.head(2))    
     if len(dfs)==3:
         df= dfs[1].copy()
         if df.iloc[0][0]=='日期':
             df.drop([0],inplace=True)
             df.dropna(axis=1,how='all',inplace=True)
-            print(lno(),df.head())
+            #print(lno(),df.head())
             
             df1= dfs[2].copy()
             if df1.iloc[0][0]=='日期':
                 df1.drop([0],inplace=True)
                 df1.dropna(axis=1,how='all',inplace=True)
                 df=pd.concat([df,df1],axis=0)
-                print(lno(),df)
+                #print(lno(),df)
                 #raise
 
     
@@ -355,10 +357,10 @@ def download_big8():
             df_s.dropna(axis=1,how='all',inplace=True)
             df_s.dropna(inplace=True)
             df_s.to_csv('csv/big3/ttt.csv',encoding='utf-8', index=False)
-            print(lno(),len(df_s),df_s.tail())
+            #print(lno(),len(df_s),df_s.tail())
             df_fin=pd.concat([df_s,df],axis=0)
             df_fin=df_fin.drop_duplicates(['日期'])
-            print(lno(),len(df_fin),df_fin)
+            print(lno(),len(df_fin),df_fin.head())
             df_fin['日期1'] =  pd.to_datetime(df_fin['日期'], format='%Y/%m/%d')
             df_fin=df_fin.sort_values(by=['日期1'], ascending=False)
             df_fin.drop('日期1',axis=1,inplace=True)

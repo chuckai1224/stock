@@ -46,6 +46,9 @@ from talib import abstract
 import scipy.signal as signal 
 from stocktool import comm as cm1 
 import platform
+import all_stock
+import seaborn as sns
+import matplotlib as mpl
 def lno():
     cf = currentframe()
     filename = getframeinfo(cf).filename
@@ -304,7 +307,7 @@ def get_date_income_ratio(r):
     #raise
     if not r.stock_id in df1['公司代號'].values.tolist():
         return ratio1,result
-    print(lno(),r.stock_id)
+    #print(lno(),r.stock_id)
     df =income.get_by_stockid_date_months(r.stock_id,date,12) 
     if len(df.index)>=1:
         df['當月營收']=df['當月營收'].astype(float)
@@ -338,9 +341,10 @@ def get_date_income_ratio(r):
         #print(df)
         #print(lno(),ratio1,ratio2)
     #sys.exit()    
-    return ratio1,result    
+    return ratio1,result   
+# 高成長 莊家信號     
 def gen_buy_list(date):
-    engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    engine = create_engine('sqlite:///sql/revenue_good.db', echo=False)
     con = engine.connect()
     markets=['tse','otc']
     d1=comm.exchange_data('tse').get_df_date_parse(date)
@@ -350,23 +354,110 @@ def gen_buy_list(date):
     d=pd.concat([d1,d2])
     if len(d.index)==0:
         return 
-    d['投信買超']=d.apply(find_fund_buy,axis=1)  
+    #
     d[['月營收均線法','月營收成長法']]=d.apply(get_date_income_ratio,axis=1,result_type="expand")  
-    d1=d[(d['月營收均線法']>=1)|(d['月營收成長法']>=1) |(d['投信買超']>=200000) ].reset_index(drop=True)
-    
+    #d1=d[(d['月營收均線法']>=1)|(d['月營收成長法']>=1) |(d['投信買超']>=200000) ].reset_index(drop=True)
+    d1=d[(d['月營收均線法']>=1)|(d['月營收成長法']>=1)  ].reset_index(drop=True)
+
+    #d['投信買超']=d.apply(find_fund_buy,axis=1)  
     #d1=data[(data[var1]==1)&(data[var2]>10)]
     #d['投信買超']=d.apply(find_fund_buy,axis=1)  
     print(lno(),d1)
     if len(d1.index):
-        table_name='good_buy_{}'.format(date.strftime('%Y%m%d'))
+        table_name='revenue_good_{}'.format(date.strftime('%Y%m%d'))
         d1.to_sql(name=table_name, con=con, if_exists='replace', index=False,chunksize=10)  
     
-   
+    
     #if len(df1.index):
     #    df_fin=pd.concat([df_fin,df1])
     #df_fin.to_sql(name='find_fund_buy_v2', con=con, if_exists='replace', index=False,chunksize=10)       
     #print(lno(),df_fin)
-        
+def get_market_value(r):
+    #return 億
+    date=r.date
+    stock_id=r.stock_id
+    tdcc=get_tdcc_dist() 
+    total_stock_nums=tdcc.get_total_stock_num(stock_id,date)
+    if total_stock_nums==0:
+        return 
+    stk=get_stock_data()    
+    df=stk.get_df_by_startdate_enddate(stock_id,date,date+relativedelta(days=1))    
+    if len(df.index)==0:
+        return 
+    #print(lno(),r.stock_id,total_stock_nums)        
+    #print(lno(),df)    
+    return  df.iloc[0]['close']* total_stock_nums /100000000
+def find_fund_buy_fix(r):
+    try :
+        sb3=get_stock_big3()
+        df=sb3.get_df_by_id_date(r.stock_id,r.date)
+        #print(lno(),df)
+        if len(df.index)==0:
+            return 
+        else:    
+            #out=df[['外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']].values[0].tolist()
+            fund_buy=df.iloc[0]['投信買賣超股數']
+            #print(lno(),fund_buy)
+            if fund_buy>200*1000:
+                return fund_buy
+            return 
+    except:
+        print(lno(),'find_fund_buy_fix error')
+        return
+def check_skip_stock(r):
+    close=np.nan
+    if len(r.stock_id)!=4:
+        return close 
+    stk=get_stock_data()  
+    df=stk.get_df_by_startdate_enddate(r.stock_id,r.date,r.date+relativedelta(days=1))    
+    if len(df.index)==0:
+        return close
+    r1=df.iloc[0]
+    #print(r1)
+    cash=float(r1.cash)
+    if cash<3000000:
+        return close
+    return r1.close   
+def check_point_K(r):
+    stk=get_stock_data()
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,122)
+    #print(lno(),df1)
+    if len(df1)<90:
+        return
+    df1['red_K_ratio']=df1.apply(red_K_ratio_calc, axis=1)
+    top10=df1.sort_values(by='red_K_ratio',ascending=False).iloc[10]['red_K_ratio']
+    #print(lno(),df1,top10)
+    if df1.iloc[-1]['red_K_ratio']>=top10:
+        return 1
+    return      
+def gen_buy_list_step1(date):
+    ## 抓取營收 
+    ## 莊家信號  投信小主力  強力K
+    engine = create_engine('sqlite:///sql/revenue_good.db', echo=False)
+    con = engine.connect()
+    table_name='revenue_good_{}'.format(date.strftime('%Y%m%d'))
+    cmd='SELECT * FROM "{}" '.format(table_name)
+    df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
+    df['date']=date
+    df['close']=df.apply(check_skip_stock,axis=1)  
+    
+    df = df[~df['close'].isnull()]
+    df['投信買超']=df.apply(find_fund_buy_fix,axis=1)  
+    df['市值']=df.apply(get_market_value,axis=1)
+    df['point_K']=df.apply(check_point_K,axis=1)
+    df[['大戶買超','中戶買超']]=df.apply(get_tdcc_dist_1000_400_buy_vol,axis=1,result_type="expand")
+    df['400張以上買超']=df['大戶買超']+df['中戶買超']
+    """
+    d1=df[(df['投信買超']>=200000)&(df['市值']<100)  ].reset_index(drop=True)
+    if len(d1.index):
+        all_stock.generate_stock_html_mode2(date,mode='營收投信買超',in_df=[d1])
+    print(lno(),d1)
+    """
+    d2=df[(df['point_K']>=1)&(df['400張以上買超']>=400000)&(df['市值']<100)  ].reset_index(drop=True)
+    if len(d2.index):
+        all_stock.generate_stock_html_mode2(date,mode='營收關鍵K大戶買超',in_df=[d2])
+    print(lno(),d2)
+
 class findstock:
     def __init__(self):
         #self.rundate=rundate
@@ -375,7 +466,7 @@ class findstock:
         self.otc=comm.exchange_data('otc')
         self.stk=comm.stock_data()
         #self.market=market
-       
+        
         method='buy_signal'
         self.engine = create_engine('sqlite:///sql/%s.db'%method, echo=False)
         self.con = self.engine.connect() 
@@ -1462,8 +1553,10 @@ def longred_analy_mode(startdate,enddate,mode):
 """
 我永遠都在尋找四種股票
 1.市值接近歷史低檔區的景氣循環股
+  ex: 統一 冬買 夏賣
 2.被大盤拖累PE回到歷史低點區的穩定獲利股
 3.產品即將被大量採用的高成長股
+  ex: 營收成長法 營收平均法 +市值<100億 + 莊家信號(投信買超 或 長紅K)
 4.過去表現很好，進入轉型期股價下跌後即將回到上昇軌道的東山再起股
 
 2.eps 歷史本益比低
@@ -1474,10 +1567,11 @@ def longred_analy_mode(startdate,enddate,mode):
 """ 
 
 if __name__ == '__main__':
-    #global g_stk
-    #global g_engine
-    #g_stk=comm.stock_data()
-    #g_engine = create_engine('sqlite:///sql/buy_signal.db', echo=False)
+    print(mpl.get_configdir())
+    sns.set()
+    mpl.rcParams['font.family'] = 'sans-serif'
+    mpl.rcParams[u'font.sans-serif'] = ['simhei']
+    #mpl.rcParams['font.sans-serif'] = 'SimHei'
     
     if len(sys.argv)==1:
         startdate=stock_comm.get_date()
@@ -1540,9 +1634,13 @@ if __name__ == '__main__':
         #TODO: f3 find 投信買超 v2      
         get_fund_buy_history()
     elif sys.argv[1]=='ff' :  
-        #TODO: ff find 投信買超 200  營收成長 營收平均    
+        #TODO: ff find  營收成長 營收平均    
         startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-        gen_buy_list(startdate)    
+        gen_buy_list(startdate)
+    elif sys.argv[1]=='ff1' :  
+        #TODO: ff1 find  營收成長 營收平均    
+        startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        gen_buy_list_step1(startdate)           
     elif sys.argv[1]=='longred' :
         if len(sys.argv)==4 :
             ## TODO find_stock long red generate
