@@ -69,7 +69,53 @@ def down_fut_op_big3(enddate,download=1):
     dfs = pd.read_html(filename,encoding = 'utf8')
     cnt=0
     for df in dfs :
-        #print(lno(),df)
+        #print(lno(),df.shape)
+        if df.shape[1]==13 :
+            if '未平倉餘額' in  df.columns:
+                print(lno(),df.iloc[0].values.tolist())
+                print(lno(),df.iloc[1].values.tolist())
+                print(lno(),df.iloc[2].values.tolist())
+                print(lno(),df.iloc[3].values.tolist())
+
+                out_file='csv/fut_op_big3/fut_op_big3_data_oi.csv'
+                list=[]
+                tmp=[]
+                tmp.append(enddate_str)
+                tmp.extend(df.iloc[0].values.tolist()[1:])
+                tmp.extend(df.iloc[1].values.tolist()[1:])
+                tmp.extend(df.iloc[2].values.tolist()[1:])
+                list.append(tmp)
+                print(lno(),len(list),list)
+                labels=['日期']
+                #"""
+                labels+=['自oi多方期貨口數','自oi多方選擇權口數','自oi多方期貨契約金額','自oi多方選擇權契約金額']
+                labels+=['自oi空方期貨口數','自oi空方選擇權口數','自oi空方期貨契約金額','自oi空方選擇權契約金額']
+                labels+=['自oi多空淨額期貨口數','自oi多空淨額選擇權口數','自oi多空淨額期貨契約金額','自oi多空淨額選擇權契約金額']
+                labels+=['投oi多方期貨口數','投oi多方選擇權口數','投oi多方期貨契約金額','投oi多方選擇權契約金額']
+                labels+=['投oi空方期貨口數','投oi空方選擇權口數','投oi空方期貨契約金額','投oi空方選擇權契約金額']
+                labels+=['投oi多空淨額期貨口數','投oi多空淨額選擇權口數','投oi多空淨額期貨契約金額','投oi多空淨額選擇權契約金額']
+                #"""
+                labels+=['外oi多方期貨口數','外oi多方選擇權口數','外oi多方期貨契約金額','外oi多方選擇權契約金額']
+                labels+=['外oi空方期貨口數','外oi空方選擇權口數','外oi空方期貨契約金額','外oi空方選擇權契約金額']
+                labels+=['外oi多空淨額期貨口數','外oi多空淨額選擇權口數','外oi多空淨額期貨契約金額','外oi多空淨額選擇權契約金額']
+                print(lno(),len(labels))
+                
+                df1 = pd.DataFrame.from_records(list, columns=labels) 
+                df1['日期']=[date_sub2time64(x) for x in df1['日期'] ]    
+                print(lno(),df1)
+                if os.path.exists(out_file): 
+                    print(lno(),out_file)
+                    df_s = pd.read_csv(out_file,encoding = 'utf-8',dtype={'日期': 'str'})
+                    df_s.dropna(axis=1,how='all',inplace=True)
+                    df_s.dropna(inplace=True)
+                    df_s['日期']=[date_sub2time64(x) for x in df_s['日期'] ]    
+                    df_s=df_s.append(df1,ignore_index=True)
+                    df_s.drop_duplicates(subset=['日期'],keep='last',inplace=True)
+                    df_s=df_s.sort_values(by=['日期'], ascending=False)
+                    df_s.to_csv(out_file,encoding='utf-8', index=False)
+                else :
+                    df1.to_csv(out_file,encoding='utf-8', index=False)
+
         if len(df)>4:
             if '未平倉餘額' in df.iloc[0].values.tolist() :
                 #columns=df.iloc[3].values.tolist();
@@ -140,32 +186,66 @@ def down_fut_op_big3_bydate(startdate,enddate):
         day=day+1   
 def get_fix_delta(date,BoS,opprice,debug=0):
     list=op.get_Op_Data_df_list(date,0)
+    
+
     if list!=[]:
         df1=list[1]
-        #print(lno(),df1.dtypes)
-        df1=df1[['到期月份(週別)','買賣權','收盤價','履約價']].copy()
+        if debug==3:
+            print(lno(),df1[(df1['買賣權']==BoS)])
+        df1=df1[['到期月份(週別)','買賣權','結算價','履約價']].copy()
         df1=df1.replace('-',np.NaN)
         df1.dropna(axis=1,how='all',inplace=True)
-        df1.dropna(inplace=True)
-        df1['收盤價']=df1['收盤價'].astype(float)
+        #df1.dropna(inplace=True)
+        df1['結算價']=df1['結算價'].astype(float)
         if debug==1:
             print(lno(),opprice)
         if BoS=='買權':
-            df_lower =df1[(df1['買賣權']==BoS)&(df1['收盤價']<=opprice)].reset_index(drop=True).head(1)
-            #print(lno(),df_lower.iloc[0]['收盤價'])
-            df_upper =df1[(df1['買賣權']==BoS)&(df1['收盤價']>=opprice)].reset_index(drop=True).tail(1)
+            df_lower =df1[(df1['買賣權']==BoS)&(df1['結算價']<=opprice)].reset_index(drop=True).head(1)
+            df_upper =df1[(df1['買賣權']==BoS)&(df1['結算價']>=opprice)].reset_index(drop=True).tail(1)
+            try:    
+                lower_delta=op.get_delta_ratio(date,BoS,df_lower.iloc[0]['到期月份(週別)'],df_lower.iloc[0]['履約價'])
+            except:
+                print(lno(),opprice,BoS,df_lower,df1[(df1['買賣權']==BoS)].reset_index(drop=True))
+                raise
+            # 當沒有op價格大於opprice return lower_delta
+            if len(df_upper)==0:
+                return lower_delta
+            try:
+                upper_delta=op.get_delta_ratio(date,BoS,df_upper.iloc[0]['到期月份(週別)'],df_upper.iloc[0]['履約價'])
+            except:
+                print(lno(),"lower",df1[(df1['買賣權']==BoS)&(df1['結算價']<=opprice)].reset_index(drop=True).head(3))
+                print(lno(),date,opprice,BoS,df_upper,df1[(df1['買賣權']==BoS)].reset_index(drop=True))
+                raise    
         else:
-            df_lower =df1[(df1['買賣權']==BoS)&(df1['收盤價']<=opprice)].reset_index(drop=True).tail(1)
-            df_upper =df1[(df1['買賣權']==BoS)&(df1['收盤價']>=opprice)].reset_index(drop=True).head(1)
-        if len(df_lower)==0:
-            print(lno(),df1)
+            df_lower =df1[(df1['買賣權']==BoS)&(df1['結算價']<=opprice)].reset_index(drop=True).tail(1)
+            df_upper =df1[(df1['買賣權']==BoS)&(df1['結算價']>=opprice)].reset_index(drop=True).head(1)
+            ##op price no small price
+            if len(df_lower)==0:
+                return 0
+            try:    
+                lower_delta=op.get_delta_ratio(date,BoS,df_lower.iloc[0]['到期月份(週別)'],df_lower.iloc[0]['履約價'])
+            except:
+                print(lno(),"op price:",opprice,BoS,df_lower,df1[(df1['買賣權']==BoS)].reset_index(drop=True))
+                raise
+            # 當沒有op價格大於opprice return lower_delta
+            if len(df_upper)==0:
+                return lower_delta
+            upper_delta=op.get_delta_ratio(date,BoS,df_upper.iloc[0]['到期月份(週別)'],df_upper.iloc[0]['履約價'])
         if debug==1:    
+            if len(df_lower)==0:
+                print(lno(),opprice,df1[(df1['買賣權']==BoS)&(df1['結算價']<=opprice)])
+            if len(df_upper)==0:
+                print(lno(),opprice,df1[(df1['買賣權']==BoS)&(df1['結算價']>=opprice)])     
+        if debug==2:    
             print(lno(),df_lower)
             print(lno(),df_upper)
-        lower_delta=op.get_delta_ratio(date,'買權',df_lower.iloc[0]['到期月份(週別)'],df_lower.iloc[0]['履約價'])
-        upper_delta=op.get_delta_ratio(date,'買權',df_upper.iloc[0]['到期月份(週別)'],df_upper.iloc[0]['履約價'])
-        stepdiff=(upper_delta-lower_delta)/(df_upper.iloc[0]['收盤價']-df_lower.iloc[0]['收盤價'])
-        fix_delta=lower_delta+(opprice-df_lower.iloc[0]['收盤價'])*stepdiff
+        
+        
+        if df_upper.iloc[0]['結算價']==df_lower.iloc[0]['結算價']:
+            stepdiff=0
+        else:
+            stepdiff=(upper_delta-lower_delta)/(df_upper.iloc[0]['結算價']-df_lower.iloc[0]['結算價'])
+        fix_delta=lower_delta+(opprice-df_lower.iloc[0]['結算價'])*stepdiff
         if debug==1:
             print(lno(),lower_delta,upper_delta,fix_delta)
         return fix_delta

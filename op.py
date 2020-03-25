@@ -283,7 +283,8 @@ def get_delta_ratio(date,BoS,MoW,price):
             df.reset_index(inplace=True)
             #print(lno(),df)
             return df.iloc[0]['Delta值']
-    return 0        
+        return 0    
+    return np.nan
 def get_op_ratio(date):
     out_file='csv/op/op_data.csv'
     #print(lno(),date)
@@ -796,7 +797,7 @@ def get_Op_Data_df_list(date,debug=1):
         df_s['未沖銷契約數']=df_s['未沖銷契約數'].astype('int')
         df_s['履約價']=df_s['履約價'].astype('int')
         df_s.dropna(axis=1,how='all',inplace=True)
-        df_s.dropna(inplace=True)
+        #df_s.dropna(inplace=True)
         #print(lno(),date.year,date.month,date.day,week_of_month(date),date.weekday())
 
         """

@@ -537,7 +537,7 @@ def generate_stock_week_kline(stock_no,enddate,outf,df_in=pd.DataFrame()):
     #ax2.xaxis.set_major_locator(mticker.MaxNLocator(len(df['date'])))        
     ax2.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
     mpl_finance.volume_overlay(ax2, df['open'], df['close'], df['vol'], colorup='r', colordown='g', width=0.7, alpha=0.7)
-    print(lno(),df[['date','tdcc_pwr']])
+    #print(lno(),df[['date','tdcc_pwr']])
     ax3.bar(df.query('tdcc_pwr > 0')['dates'], df.query('tdcc_pwr > 0')['tdcc_pwr'], color='r', alpha=0.7)
     ax3.bar(df.query('tdcc_pwr <= 0')['dates'], df.query('tdcc_pwr <= 0')['tdcc_pwr'], color='g', alpha=0.7)
     #A=ax3.bar(df['dates'],df['tdcc_pwr'],color='r',width=0.7, alpha=0.7)

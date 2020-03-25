@@ -409,7 +409,7 @@ class income:
             print(lno(),df)
             return df
         except :
-            print(lno(),'get_by_stockid_date read sql fail')
+            print(lno(),stock_id,date,'get_by_stockid_date read sql fail')
             return pd.DataFrame()
     def get_by_stockid_date_months(self,stock_id,date,mons):
         df_out= pd.DataFrame()

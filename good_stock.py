@@ -447,12 +447,12 @@ def gen_buy_list_step1(date):
     df['point_K']=df.apply(check_point_K,axis=1)
     df[['大戶買超','中戶買超']]=df.apply(get_tdcc_dist_1000_400_buy_vol,axis=1,result_type="expand")
     df['400張以上買超']=df['大戶買超']+df['中戶買超']
-    """
+    #"""
     d1=df[(df['投信買超']>=200000)&(df['市值']<100)  ].reset_index(drop=True)
     if len(d1.index):
         all_stock.generate_stock_html_mode2(date,mode='營收投信買超',in_df=[d1])
     print(lno(),d1)
-    """
+    #"""
     d2=df[(df['point_K']>=1)&(df['400張以上買超']>=400000)&(df['市值']<100)  ].reset_index(drop=True)
     if len(d2.index):
         all_stock.generate_stock_html_mode2(date,mode='營收關鍵K大戶買超',in_df=[d2])

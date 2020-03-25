@@ -41,7 +41,7 @@ if __name__ == '__main__':
                 startdate=datetime(year=today.year,month=today.month,day=today.day,)
             enddate=startdate
         print(lno(),startdate,enddate) 
-        #"""   
+        """   
         kline.down_tse_kline(startdate,enddate)
         twse_big3.down_twse_3big(startdate,enddate)
         twse_big3.generate_twse_3big(startdate,enddate)
@@ -49,19 +49,20 @@ if __name__ == '__main__':
         taiwan_dollar.down_taiwan_dollar(startdate,enddate)  
         op.op_down_load_job(startdate,enddate)  
         powerinx.download_job(startdate,enddate)  
-        #"""
         if startdate==enddate:
             crawl.download_job(startdate,enddate)  
             stock_bs_analy.gen_stock_bs_oneday(startdate)
-        #"""    
+        """    
         big3_fut_op.down_fut_op_big3_bydate(startdate,enddate)  
+        
         twii.download_twii(startdate,enddate) 
         twii.generate_twii_fin(startdate,enddate) 
         if startdate==enddate:
             twii.show_twii_v1(startdate,debug=1)  
-        #"""    
+        """
         sb3=stock_big3.stock_big3()
         sb3.download_by_dates(startdate,enddate)   
+        """
 """
 資金流向
 新興(土耳其 阿根廷 南非)>> 亞洲>>歐美
