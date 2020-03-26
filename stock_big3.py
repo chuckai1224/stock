@@ -423,8 +423,11 @@ class stock_big3:
         except:
             filesize=os.path.getsize(htmlfile)
             if  filesize<1024:
-                os.remove(htmlfile)
+                try:
+                    os.remove(htmlfile)
+                except:    
                 #print(lno(),"wrong file size", htmlfile)
+                    pass
                 return
             else:
                 if market == 'otc' and date <= datetime(2014, 12, 1):

@@ -211,13 +211,17 @@ def update_tdcc_date():
     r = session.post(url=post_url,headers=headers, data=dd)
     #print (lno(),r.text,len(r.text))
     datelist=  [e.strip('"').encode('utf-8') for e in r.text.strip('[]').split(',')]
-    #print (lno(),datelist)
+    print (lno(),datelist)
     SCA_DATE=[]
     for i in datelist:
         if i.isdigit() and len(i)==8 :
             #print (i,type(i))
             if i==b'20191005':
                 i=b'20191004'
+            if i==b'20200122':
+                i=b'20200120'
+            if i==b'20200215':
+                i=b'20200214'        
             SCA_DATE.append(i.decode("utf-8") )
     print (lno(),SCA_DATE)
     if len(SCA_DATE) != 0 :
@@ -254,6 +258,10 @@ def update_tdcc_data():
                     continue;
                 if i[0]=='20191005':
                     i[0]='20191004'
+                if i[0]=='20200122':
+                    i[0]='20200120' 
+                if i[0]=='20200215':
+                    i[0]='20200214'        
                 ymd=i[0]    
                 if i[2]=='1' :
                     key=i[1]

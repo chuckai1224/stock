@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 import csv
 import os
@@ -351,6 +351,7 @@ def get_eps_df(stock_no):
         df_s.dropna(axis=1,how='all',inplace=True)
         df_s.dropna(inplace=True)
         return df_s
+    return pd.DataFrame()
 def get_season_high_low(df,startdate,enddate):
     df1=comm.get_df_bydate(df,startdate,enddate)
     df2=df1.copy()
@@ -376,7 +377,7 @@ def assume_eps(df_eps):
     
     #print(lno(),df)
     return act_eps
-def gen_eps_river(stock_no,enddate):
+def gen_eps_river(stock_no,enddate,years=3,debug=0):
     """
     get all season eps
     """
@@ -391,7 +392,8 @@ def gen_eps_river(stock_no,enddate):
     df_eps['min_pe']=np.nan
     df_eps['avg_pe']=np.nan
     act_eps=assume_eps(df_eps)
-    print(lno(),act_eps)
+    if debug>0:
+        print(lno(),act_eps)
     #if len(df_eps)<14:
     if False:
         df_y=df_eps.loc[(df_eps['季'] == 4)].copy().reset_index(drop=True)
@@ -436,19 +438,21 @@ def gen_eps_river(stock_no,enddate):
             if df_eps.loc[i]['季']==1:
                 ##4123 i+2(p3)i+1(p4) i(1) i-1(2) i-2(3) ==>3(i-2) + prev4(i+1) -prev3(i+2)
                 try:
-                    fix_eps=df_eps.at[i-2,'本季eps']+df_eps.at[i+1,'本季eps']-df_eps.at[i+2,'本季eps']
-                    df_eps.at[i,'fix_eps']=fix_eps
-                    startdate=datetime.strptime('%d/01/01'%(int(year+1911)),'%Y/%m/%d')
-                    enddate=datetime.strptime('%d/04/01'%(int(year+1911)),'%Y/%m/%d')
-                    enddate=enddate-relativedelta(days=1)
-                    #print(lno(),startdate,enddate)
-                    list=get_season_high_low(df,startdate,enddate)
-                    if len(list)==3:
-                        df_eps.at[i,'max_pe']=list[0]/fix_eps
-                        df_eps.at[i,'min_pe']=list[1]/fix_eps
-                        df_eps.at[i,'avg_pe']=list[2]/fix_eps
+                    if i+2 <len(df_eps):
+                        fix_eps=df_eps.at[i-2,'本季eps']+df_eps.at[i+1,'本季eps']-df_eps.at[i+2,'本季eps']
+                        df_eps.at[i,'fix_eps']=fix_eps
+                    
+                        startdate=datetime.strptime('%d/01/01'%(int(year+1911)),'%Y/%m/%d')
+                        enddate=datetime.strptime('%d/04/01'%(int(year+1911)),'%Y/%m/%d')
+                        enddate=enddate-relativedelta(days=1)
+                        #print(lno(),startdate,enddate)
+                        list=get_season_high_low(df,startdate,enddate)
+                        if len(list)==3 and fix_eps!=0:
+                            df_eps.at[i,'max_pe']=list[0]/fix_eps
+                            df_eps.at[i,'min_pe']=list[1]/fix_eps
+                            df_eps.at[i,'avg_pe']=list[2]/fix_eps
                 except:
-                    print(lno(),stock_no,"eps error")
+                    print(lno(),stock_no,"eps error",i,len(df_eps))
                 
                 
             elif df_eps.loc[i]['季']==2:
@@ -456,57 +460,62 @@ def gen_eps_river(stock_no,enddate):
                 try:
                     fix_eps=df_eps.loc[i-2]['本季eps']
                     df_eps.at[i,'fix_eps']=fix_eps
+                       
                     startdate=datetime.strptime('%d/04/01'%(int(year+1911)),'%Y/%m/%d')
                     enddate=datetime.strptime('%d/07/01'%(int(year+1911)),'%Y/%m/%d')
                     enddate=enddate-relativedelta(days=1)
                     #print(lno(),startdate,enddate)
                     list=get_season_high_low(df,startdate,enddate)
-                    if len(list)==3:
+                    if len(list)==3 and fix_eps!=0:
                         df_eps.at[i,'max_pe']=list[0]/fix_eps
                         df_eps.at[i,'min_pe']=list[1]/fix_eps
                         df_eps.at[i,'avg_pe']=list[2]/fix_eps
                 except:
-                    print(lno(),stock_no,"eps error")
+                    print(lno(),stock_no,"eps error",i,len(df_eps))
             #""" 
             elif df_eps.loc[i]['季']==3:
             ##2341  i+2(1)i+1(2) i(3) i-1(4) i-2(1)==> 4- 1 +next 1
                 try:
-                    fix_eps=df_eps.loc[i-1]['本季eps']-df_eps.loc[i+2]['本季eps']+df_eps.loc[i-2]['本季eps']
-                    df_eps.at[i,'fix_eps']=fix_eps
-                    startdate=datetime.strptime('%d/07/01'%(int(year+1911)),'%Y/%m/%d')
-                    enddate=datetime.strptime('%d/10/01'%(int(year+1911)),'%Y/%m/%d')
-                    enddate=enddate-relativedelta(days=1)
-                    #print(lno(),startdate,enddate)
-                    list=get_season_high_low(df,startdate,enddate)
-                    if len(list)==3:
-                        df_eps.at[i,'max_pe']=list[0]/fix_eps
-                        df_eps.at[i,'min_pe']=list[1]/fix_eps
-                        df_eps.at[i,'avg_pe']=list[2]/fix_eps
+                    if i+2 <len(df_eps):
+                        fix_eps=df_eps.loc[i-1]['本季eps']-df_eps.loc[i+2]['本季eps']+df_eps.loc[i-2]['本季eps']
+                        df_eps.at[i,'fix_eps']=fix_eps
+                        startdate=datetime.strptime('%d/07/01'%(int(year+1911)),'%Y/%m/%d')
+                        enddate=datetime.strptime('%d/10/01'%(int(year+1911)),'%Y/%m/%d')
+                        enddate=enddate-relativedelta(days=1)
+                        #print(lno(),startdate,enddate)
+                        list=get_season_high_low(df,startdate,enddate)
+                        if len(list)==3 and fix_eps!=0:
+                            df_eps.at[i,'max_pe']=list[0]/fix_eps
+                            df_eps.at[i,'min_pe']=list[1]/fix_eps
+                            df_eps.at[i,'avg_pe']=list[2]/fix_eps
                 except:
-                    print(lno(),stock_no,"eps error")
+                    print(lno(),stock_no,"eps error",i,len(df_eps))
             elif df_eps.loc[i]['季']==4:
             ##3412 ==> 4 -2 +n2 =>i+2(2) i+1(3) i(4) i-1(n1) i-1(n2)
                 #print(lno(),df_eps)
                 try:
-                    fix_eps=df_eps.loc[i]['本季eps']-df_eps.loc[i+2]['本季eps'] +df_eps.loc[i-2]['本季eps']
-                    df_eps.at[i,'fix_eps']=fix_eps
-                
-                    startdate=datetime.strptime('%d/10/01'%(int(year+1911)),'%Y/%m/%d')
-                    enddate=datetime.strptime('%d/01/01'%(int(year+1911)+1),'%Y/%m/%d')
-                    enddate=enddate-relativedelta(days=1)
-                    #print(lno(),startdate,enddate)
-                    list=get_season_high_low(df,startdate,enddate)
-                    if len(list)==3:
-                        df_eps.at[i,'max_pe']=list[0]/fix_eps
-                        df_eps.at[i,'min_pe']=list[1]/fix_eps
-                        df_eps.at[i,'avg_pe']=list[2]/fix_eps
+                    if i+2 <len(df_eps):
+                        fix_eps=df_eps.loc[i]['本季eps']-df_eps.loc[i+2]['本季eps'] +df_eps.loc[i-2]['本季eps']
+                        df_eps.at[i,'fix_eps']=fix_eps
+                        
+                        startdate=datetime.strptime('%d/10/01'%(int(year+1911)),'%Y/%m/%d')
+                        enddate=datetime.strptime('%d/01/01'%(int(year+1911)+1),'%Y/%m/%d')
+                        enddate=enddate-relativedelta(days=1)
+                        #print(lno(),startdate,enddate)
+                        list=get_season_high_low(df,startdate,enddate)
+                        if len(list)==3 and fix_eps!=0:
+                            df_eps.at[i,'max_pe']=list[0]/fix_eps
+                            df_eps.at[i,'min_pe']=list[1]/fix_eps
+                            df_eps.at[i,'avg_pe']=list[2]/fix_eps
                 except:
-                    print(lno(),stock_no,"eps error")
+                    #print(lno(),df_eps.loc[i]['本季eps'],df_eps.loc[i+2]['本季eps'], df_eps.loc[i-2]['本季eps'])
+                    print(lno(),stock_no,"eps error",i,len(df_eps))
+                    
             #"""    
         #print(lno(),df_eps)
         df_eps.dropna(inplace=True)    
         #print(lno(),df_eps)
-        df_eps=df_eps.head(12)    
+        df_eps=df_eps.head(years*4)    
         #print(lno(),df_eps)
         tmp=[]
         tmp.append(act_eps)
@@ -515,7 +524,8 @@ def gen_eps_river(stock_no,enddate):
         tmp.append(df_eps['avg_pe'].mean())
         tmp.append(df_eps['avg_pe'].min())
         tmp.append(df_eps['min_pe'].min())
-        print(lno(),tmp)
+        if debug>0:
+            print(lno(),tmp)
     return tmp
     #print(lno(),df_eps)
 def gen_eps_river_by_year(stock_no,enddate):
@@ -645,7 +655,38 @@ def down_financial(year, reason,market,type='綜合損益彙總表',download=1):
     if len(df_out)>2:
         df_out.to_csv(out_file,encoding='utf-8', index=False)
     return
-    
+def get_last_year_eps(date):
+    nowdate=date
+    get_data=False
+    df_s=pd.DataFrame()
+    while get_data==False:
+        year=str(int(nowdate.year)-1911)
+        season=4
+        file='data/eps/tse_%s-%s.csv'%(year, season)
+        if os.path.exists(file):  
+            df_s = pd.read_csv(file,encoding = 'utf-8',dtype= {'公司代號':str})
+            file='data/eps/otc_%s-%s.csv'%(year, season)
+            if os.path.exists(file):  
+                df_otc = pd.read_csv(file,encoding = 'utf-8',dtype= {'公司代號':str})
+                df_s=pd.concat([df_s,df_otc]).reset_index(drop=True)
+            df_s['year']=int(nowdate.year)
+            get_data=True
+            #print(lno(),df_s)
+        else:    
+            nowdate = nowdate - relativedelta(years=1)
+    return df_s        
+"""
+產生落於低位階的股票
+"""
+def gen_buy_mode1(date):
+    df =get_last_year_eps(date) 
+    df=df[df['基本每股盈餘（元）']>0].reset_index(drop=True)
+    for i in range(0,len(df)):
+        df_eps=get_eps_df(df.iloc[i]['公司代號'])
+        
+        print(lno(),df.iloc[i]['公司代號'])
+        print(lno(),df_eps)
+    #print(lno(),df)
 if __name__ == '__main__':
 
     sns.set()
@@ -742,15 +783,22 @@ if __name__ == '__main__':
 
         else :
             print (lno(),'func -t stock_no date')  
-            
+    elif sys.argv[1]=='g1' :
+        #try:
+        enddate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        gen_buy_mode1(enddate)
+
+        #except:
+        #    print (lno(),'func g1 date')          
     elif len(sys.argv)==3:
         ## input parameter : 108 1   
         year=int(sys.argv[1])  
-        reason=int(sys.argv[2])
+        season=int(sys.argv[2])
        
         #down_financial(year,reason,'tse',type='綜合損益彙總表',download=1)
-        down_tse_eps(year,reason,1)
-        down_otc_eps(year,reason,1)
+        down_tse_eps(year,season,1)
+        down_otc_eps(year,season,1)
+        gen_eps(year,season)
         
     else:
         print (lno(),"usage: eps.py 108 1 ")

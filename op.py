@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 #import grs
 import csv
 import os
@@ -197,7 +197,8 @@ def down_op_pc(startdate,enddate):
         # A chunk of 128 bytes
         for chunk in page:
             file.write(chunk)
-    df = pd.read_csv(filename,encoding = 'utf-8',skiprows=1,header=None)
+    print(lno(),filename)        
+    df = pd.read_csv(filename,encoding = 'big5',skiprows=1,header=None)
     df.columns=['日期','賣權成交量','買權成交量','買賣權成交量比率%','賣權未平倉量','買權未平倉量','買賣權未平倉量比率%','dummy']
     print (lno(),df)
     df.dropna(axis=1,how='all',inplace=True)
@@ -1554,7 +1555,7 @@ def op_plot_v1(date,debug=0):
         df['OP分析圖'] = df['OP分析圖'].apply(lambda x: '<img src="{}" style="max-height:450px;"/>'.format(x) if x else '') 
         filen='day_report/%d%02d%02d/op.html'%(date.year,date.month,date.day)
         old_width = pd.get_option('display.max_colwidth')
-        pd.set_option('display.max_colwidth', -1)
+        pd.set_option('display.max_colwidth', None)
         df.to_html(filen,escape=False,index=False,sparsify=True,border=2,index_names=False)
         pd.set_option('display.max_colwidth', old_width) 
         PdfFilename='day_report/%d%02d%02d/op.pdf'%(date.year,date.month,date.day)

@@ -49,6 +49,7 @@ import platform
 import all_stock
 import seaborn as sns
 import matplotlib as mpl
+import eps
 def lno():
     cf = currentframe()
     filename = getframeinfo(cf).filename
@@ -393,17 +394,17 @@ def find_fund_buy_fix(r):
         df=sb3.get_df_by_id_date(r.stock_id,r.date)
         #print(lno(),df)
         if len(df.index)==0:
-            return 
+            return np.nan
         else:    
             #out=df[['外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數','三大法人買賣超股數']].values[0].tolist()
             fund_buy=df.iloc[0]['投信買賣超股數']
             #print(lno(),fund_buy)
             if fund_buy>200*1000:
                 return fund_buy
-            return 
+            return np.nan
     except:
         print(lno(),'find_fund_buy_fix error')
-        return
+        return np.nan
 def check_skip_stock(r):
     close=np.nan
     if len(r.stock_id)!=4:
@@ -435,29 +436,174 @@ def gen_buy_list_step1(date):
     ## 莊家信號  投信小主力  強力K
     engine = create_engine('sqlite:///sql/revenue_good.db', echo=False)
     con = engine.connect()
+    table_names=engine.table_names()
+    print(lno(),table_names[-1])
     table_name='revenue_good_{}'.format(date.strftime('%Y%m%d'))
+    if not table_name in table_names:
+        table_name=table_names[-1]
     cmd='SELECT * FROM "{}" '.format(table_name)
     df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
     df['date']=date
     df['close']=df.apply(check_skip_stock,axis=1)  
     
     df = df[~df['close'].isnull()]
-    df['投信買超']=df.apply(find_fund_buy_fix,axis=1)  
     df['市值']=df.apply(get_market_value,axis=1)
+    df=df[df['市值']<100]
+    df['投信買超']=df.apply(find_fund_buy_fix,axis=1)  
+   
     df['point_K']=df.apply(check_point_K,axis=1)
     df[['大戶買超','中戶買超']]=df.apply(get_tdcc_dist_1000_400_buy_vol,axis=1,result_type="expand")
     df['400張以上買超']=df['大戶買超']+df['中戶買超']
+    
+    
     #"""
-    d1=df[(df['投信買超']>=200000)&(df['市值']<100)  ].reset_index(drop=True)
-    if len(d1.index):
-        all_stock.generate_stock_html_mode2(date,mode='營收投信買超',in_df=[d1])
-    print(lno(),d1)
-    #"""
-    d2=df[(df['point_K']>=1)&(df['400張以上買超']>=400000)&(df['市值']<100)  ].reset_index(drop=True)
+    d2=df[(df['point_K']>=1)&(df['400張以上買超']>=400000) ].reset_index(drop=True)
     if len(d2.index):
         all_stock.generate_stock_html_mode2(date,mode='營收關鍵K大戶買超',in_df=[d2])
     print(lno(),d2)
-
+    #"""
+    d1=df[(df['投信買超']>=200000)  ].reset_index(drop=True)
+    if len(d1.index):
+        all_stock.generate_stock_html_mode2(date,mode='營收投信買超',in_df=[d1])
+    
+    print(lno(),d1)
+def gen_buy_list_day_v1(date):
+    ## 抓取當日股票資料
+    d1=comm.exchange_data('tse').get_df_date_parse(date)
+    d1['market']='tse'
+    d2=comm.exchange_data('otc').get_df_date_parse(date)
+    d2['market']='otc'
+    d=pd.concat([d1,d2])
+    if len(d.index)==0:
+        return 
+    def chk_skip_stock(r):
+        close=np.nan
+        print(lno(),r.stock_id)
+        if len(r.stock_id)!=4:
+            return 0 
+        if r.cash<5000000:
+            return 0
+        if r.stock_id[0] =='0':
+            return 0
+        return 1
+    d['skip']=d.apply(chk_skip_stock,axis=1) 
+    d=d[d['skip']==1].reset_index(drop=True)
+    d['市值']=d.apply(get_market_value,axis=1)
+    d=d[d['市值']<100]
+    d['投信買超']=d.apply(find_fund_buy_fix,axis=1)  
+   
+    d['point_K']=d.apply(check_point_K,axis=1)
+    d[['大戶買超','中戶買超']]=d.apply(get_tdcc_dist_1000_400_buy_vol,axis=1,result_type="expand")
+    d['400張以上買超']=d['大戶買超']+d['中戶買超']
+    print(lno(),d)
+    df=d.copy()
+    df['市值']=df.apply(get_market_value,axis=1)
+    df=df[df['市值']<100]
+    df['投信買超']=df.apply(find_fund_buy_fix,axis=1)  
+   
+    df['point_K']=df.apply(check_point_K,axis=1)
+    df[['大戶買超','中戶買超']]=df.apply(get_tdcc_dist_1000_400_buy_vol,axis=1,result_type="expand")
+    df['400張以上買超']=df['大戶買超']+df['中戶買超']
+    d2=df[(df['point_K']>=1)&(df['400張以上買超']>=400000) ].reset_index(drop=True)
+    if len(d2.index):
+        all_stock.generate_stock_html_mode2(date,mode='營收關鍵K大戶買超',in_df=[d2])
+    print(lno(),d2)
+    d1=df[(df['投信買超']>=200000)  ].reset_index(drop=True)
+    if len(d1.index):
+        all_stock.generate_stock_html_mode2(date,mode='營收投信買超',in_df=[d1])
+    
+    print(lno(),d1)    
+    return 
+    ## 莊家信號  投信小主力  強力K
+    
+    engine = create_engine('sqlite:///sql/revenue_good.db', echo=False)
+    con = engine.connect()
+    table_names=engine.table_names()
+    
+    
+    print(lno(),table_names[-1])
+    table_name='revenue_good_{}'.format(date.strftime('%Y%m%d'))
+    if not table_name in table_names:
+        table_name=table_names[-1]
+    cmd='SELECT * FROM "{}" '.format(table_name)
+    df = pd.read_sql(cmd, con=con, parse_dates=['date']) 
+    df['date']=date
+    df['close']=df.apply(check_skip_stock,axis=1)  
+    
+    df = df[~df['close'].isnull()]
+    df['市值']=df.apply(get_market_value,axis=1)
+    df=df[df['市值']<100]
+    df['投信買超']=df.apply(find_fund_buy_fix,axis=1)  
+   
+    df['point_K']=df.apply(check_point_K,axis=1)
+    df[['大戶買超','中戶買超']]=df.apply(get_tdcc_dist_1000_400_buy_vol,axis=1,result_type="expand")
+    df['400張以上買超']=df['大戶買超']+df['中戶買超']
+    
+    
+    #"""
+    d2=df[(df['point_K']>=1)&(df['400張以上買超']>=400000) ].reset_index(drop=True)
+    if len(d2.index):
+        all_stock.generate_stock_html_mode2(date,mode='營收關鍵K大戶買超',in_df=[d2])
+    print(lno(),d2)
+    #"""
+    d1=df[(df['投信買超']>=200000)  ].reset_index(drop=True)
+    if len(d1.index):
+        all_stock.generate_stock_html_mode2(date,mode='營收投信買超',in_df=[d1])
+    
+    print(lno(),d1)    
+    
+def gen_buy_mode2(date):
+    ## 抓取當日股票資料
+    d1=comm.exchange_data('tse').get_df_date_parse(date)
+    d1['market']='tse'
+    d2=comm.exchange_data('otc').get_df_date_parse(date)
+    d2['market']='otc'
+    d=pd.concat([d1,d2])
+   
+    if len(d.index)==0:
+        return 
+    def chk_skip_stock(r):
+        close=np.nan
+        #print(lno(),r.stock_id)
+        if len(r.stock_id)!=4 or r.stock_id[0] =='0' or r.vol==0:
+            return 0,np.NaN,np.NaN,np.NaN,np.NaN 
+        
+        df=eps.get_eps_df(r.stock_id)
+        if len(df)==0:
+            return 0,np.NaN,np.NaN,np.NaN,np.NaN
+        try:
+            df_year_eps=df[df['季']==4].reset_index(drop=True).head(5)
+        except:
+            print(lno(),r.stock_id,df) 
+            raise   
+        if len(df_year_eps)!=5:
+            return 0,np.NaN,np.NaN,np.NaN,np.NaN
+        if len(df_year_eps[df_year_eps['本季eps']<=0])!=0:
+            return 0,np.NaN,np.NaN,np.NaN,np.NaN
+        
+        #0:近4季eps
+        #2:合理值上限
+        #3:合理價
+        #4:買進價1
+        _list=eps.gen_eps_river(r.stock_id,r.date,years=5)
+        if _list[0]<=0 or _list[4]<=0 or _list[4]>=20 :
+            return 0,np.NaN,np.NaN,np.NaN,np.NaN
+        buy_price=_list[0]*_list[4]*1.01
+        if r.close>=buy_price :
+            return 0,np.NaN,np.NaN,np.NaN,np.NaN
+        #print(lno(),_list)
+        #print(lno(),r)
+        #raise
+        return 1,_list[0],_list[2],_list[3],_list[4]
+    #d['skip']=d.apply(chk_skip_stock,axis=1) 
+    d[['skip','4季eps','eps平均上限','eps平均','eps平均下限']]=d.apply(chk_skip_stock,axis=1,result_type="expand")
+    d=d[d['skip']==1].reset_index(drop=True)
+    
+    
+    print(lno(),d)    
+ 
+    
+   
 class findstock:
     def __init__(self):
         #self.rundate=rundate
@@ -1574,8 +1720,8 @@ if __name__ == '__main__':
     #mpl.rcParams['font.sans-serif'] = 'SimHei'
     
     if len(sys.argv)==1:
-        startdate=stock_comm.get_date()
-        down_fut_op_big3(startdate)
+        startdate=datetime(2019,12,13)  
+        gen_buy_list_step1(startdate)  
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
         if len(sys.argv)==3 :
@@ -1638,9 +1784,30 @@ if __name__ == '__main__':
         startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
         gen_buy_list(startdate)
     elif sys.argv[1]=='ff1' :  
-        #TODO: ff1 find  營收成長 營收平均    
-        startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-        gen_buy_list_step1(startdate)           
+        #TODO: ff1 find  每日股票標的  
+        try:
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            pass
+        #startdate=datetime(2019,12,14)  
+        gen_buy_list_step1(startdate)   
+        raise   
+    elif sys.argv[1]=='fff' :  
+        #TODO: fff find  每日股票標的  from 投信小市值 強力K+周股權分散
+        try:
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            pass
+        #startdate=datetime(2019,12,14)  
+        gen_buy_list_day_v1 (startdate)
+    elif sys.argv[1]=='ff2' :  
+        #TODO: fff find  每日股票標的  from 投信小市值 強力K+周股權分散
+        try:
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            pass
+        #startdate=datetime(2019,12,14)  
+        gen_buy_mode2(startdate)           
     elif sys.argv[1]=='longred' :
         if len(sys.argv)==4 :
             ## TODO find_stock long red generate

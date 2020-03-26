@@ -1,4 +1,4 @@
-# 
+﻿# 
 # _*_ coding:UTF-8 _*_ 
 #import pandas
 import pandas as pd
@@ -167,11 +167,18 @@ def download_tse_sectinx(dataday):
     #將資料集指向gold參數
     gold=dfs[0]
     #print (lno(),list(gold))
+    print (lno(),gold.shape)
+    if gold.shape[1]==5:
     gold.columns=['name','close','sign','diff','diff_percent']
+    elif gold.shape[1]==6:
+        gold.columns=['name','close','sign','diff','diff_percent','dummy']  
+        gold=gold.drop('dummy',axis=1)  
+    else:
+        raise    
     #print (lno(),list(gold))
     tmp=[]
     for i in range (0,len(gold)):
-        if gold.ix[i]['name'] in idx_list:
+        if gold.iloc[i]['name'] in idx_list:
             print (gold.iloc[i].values.tolist())
             tmp.append(gold.iloc[i].values.tolist())
     labels =['name','close','sign','diff','diff_percent']

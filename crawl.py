@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 import os
 import re
@@ -29,6 +29,9 @@ def string_float(x):
             return float('0.0')
         if '--' in x:
             return np.NaN    
+        if '##' in x:
+            return np.NaN
+        #print(lno(),x)    
         return float(x.strip().replace(',',''))
     else:   
         return float(x)

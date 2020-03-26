@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 #from __future__ import unicode_literals
 import io
 import csv
@@ -323,12 +323,57 @@ def down_op_top10(enddate,download=1,debug=0):
     if debug==1:  
         print(lno(),df_f)  
     return df_f
+"""
+單位名稱            買進金額            賣出金額            買賣差額
+0       自營商(自行買賣)     759,654,580   2,470,437,837  -1,710,783,257
+1         自營商(避險)   7,048,660,595   7,478,180,543    -429,519,948
+2              投信   2,412,612,070   1,074,835,090   1,337,776,980
+3  外資及陸資(不含外資自營商)  50,198,590,409  52,511,853,689  -2,313,263,280
+4           外資自營商         698,720         196,650         502,070
+5              合計  60,419,517,654  63,535,307,159  -3,115,789,505
+"""
+def down_twse_big3(enddate,download=1,debug=1):
+    
+    check_dst_folder(save_path)
+    enddate_str=enddate.strftime("%Y/%m/%d")
+    filename='csv/big3/{}.csv'.format(enddate.strftime("%Y%m%d"))
+    #if not os.path.exists(filename):
+    url='http://www.twse.com.tw/fund/BFI82U?response=csv&dayDate=%d%02d%02d&type=day'%(int(enddate.year),int(enddate.month),int(enddate.day))
+    print(lno(),enddate_str)
+    if download==1:
+        page = requests.get(url)
+        if not page.ok:
+            print(lno(),"Can not get data at {}".format(url))
+            return 
+        with open(filename, 'wb') as file:
+            # A chunk of 128 bytes
+            for chunk in page:
+                file.write(chunk)
+        time.sleep(3)        
+    if not os.path.exists(filename): 
+        return
+    try:
+        dfs = pd.read_csv(filename,encoding = 'big5',skiprows=1)
+        dfs.dropna(axis=1,how='all',inplace=True)
+        dfs.dropna(inplace=True)
+        if debug==1:
+            print(lno(),dfs)
+    except:
+        print(lno(),"df ng",filename)        
+        raise    
+    return dfs
+
 def str2int(x):
+    
     if type(x) != str:
         return x
-    if '-' in x:
-        return 0
-    return float(x.strip().replace(',',''))
+    try:
+        tmp=float(x.strip().replace(',',''))
+    except:
+        if '-' in x :
+            return 0
+        raise
+    return tmp    
 
             
 def generate_final(enddate):
@@ -610,6 +655,11 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
             '十大 月sell call 口數','十大 月sell put 口數',#37
             '十大 所有buy call 口數','十大 所有buy put 口數',#39
             '十大 所有sell call 口數','十大 所有sell put 口數',#41
+            '自營商(自行買賣)買賣差額',
+            '自營商(避險)買賣差額',
+            '投信買賣差額',
+            '外資及陸資買賣差額',
+            '外資自營商買賣差額',
             ]
     f_big3_cols=[]        
     s_big3_cols=[]
@@ -625,7 +675,7 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
         elif '十大' in i:
             top10_cols.append(i)
 
-    df_o = pd.DataFrame(pd.np.empty(( 1, len(outcols))) * pd.np.nan, columns = outcols)   
+    df_o = pd.DataFrame(np.empty(( 1, len(outcols))) * np.nan, columns = outcols)   
     #raise
     dst_folder='data/fut'
     out_file='data/fut/fut_day_report_fin.csv'
@@ -636,16 +686,35 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
         if df_fut_close.iloc[0]['交易日期']!=enddate.strftime('%Y/%m/%d'):
             print(lno(),enddate,"no data")
             return
-        
+        df_twse_big3=down_twse_big3(enddate,download=dw,debug=1)
         df_fut_big3=down_fut_big3(enddate,download=dw,debug=1)
         df_op_big3=down_op_big3(enddate,download=dw,debug=1)
         df_fut_top10=down_fut_top10(enddate,download=dw,debug=1)
         df_op_top10=down_op_top10(enddate,download=dw,debug=1)
+        
+        op.down_optData(enddate,enddate)
         if not os.path.exists('csv/op/op_delta_{}.csv'.format(enddate.strftime('%Y%m%d'))): 
             op.down_opDelta(enddate)
         print(lno(),df_fut_close.iloc[0]['收盤價'])
         
         df_o.iloc[0]['期貨收盤價']=df_fut_close.iloc[0]['收盤價']
+        ##現貨 三大法人
+        df=df_twse_big3
+        if debug ==1:
+            print(lno(),df)
+        df_o.iloc[0]['自營商(自行買賣)買賣差額']=str2int(df[df['單位名稱'] == '自營商(自行買賣)'].iloc[0]['買賣差額'])
+        df_o.iloc[0]['自營商(避險)買賣差額']=str2int(df[df['單位名稱'] == '自營商(避險)'].iloc[0]['買賣差額'])
+        df_o.iloc[0]['投信買賣差額']=str2int(df[df['單位名稱'] == '投信'].iloc[0]['買賣差額'])
+        #if enddate > datetime(2020, 2, 21):
+        df_o.iloc[0]['外資及陸資買賣差額']=str2int(df[df['單位名稱'] == '外資及陸資(不含外資自營商)'].iloc[0]['買賣差額'])
+        df_o.iloc[0]['外資自營商買賣差額']=str2int(df[df['單位名稱'] == '外資自營商'].iloc[0]['買賣差額'])
+        if debug ==1:
+            print(lno(),df_o.iloc[0]['自營商(自行買賣)買賣差額'])
+            print(lno(),df_o.iloc[0]['自營商(避險)買賣差額'])
+            print(lno(),df_o.iloc[0]['投信買賣差額'])
+            print(lno(),df_o.iloc[0]['外資及陸資買賣差額'])
+            print(lno(),df_o.iloc[0]['外資自營商買賣差額'])
+        
         #10大 期貨
         if len(df_fut_top10)==3:
             # 十大月買方 - 十大月買方
@@ -791,6 +860,11 @@ def get_fut_op_big3_top10_data_by_date(enddate):
             '十大 月sell call 口數','十大 月sell put 口數',#37
             '十大 所有buy call 口數','十大 所有buy put 口數',#39
             '十大 所有sell call 口數','十大 所有sell put 口數',#41
+            '自營商(自行買賣)買賣差額',
+            '自營商(避險)買賣差額',
+            '投信買賣差額',
+            '外資及陸資買賣差額',
+            '外資自營商買賣差額',
             ]
     out_file='data/fut/fut_day_report_fin.csv'
     if os.path.exists(out_file): 

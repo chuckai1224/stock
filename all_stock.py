@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 #import grs
 import csv
 import os
@@ -1705,8 +1705,10 @@ def generate_stock_html_mode2(enddate,practice=0,mode='股job',in_df=[],debug=1)
             'encoding': "BIG5",
             'no-outline': None
             } 
-            
-    #pdf.from_file(filen, PdfFilename,options=options)
+    try:        
+        pdf.from_file(filen, PdfFilename,options=options)
+    except:
+        pass    
 
     """
     app = QApplication(sys.argv)
@@ -1768,7 +1770,18 @@ if __name__ == '__main__':
     elif len(sys.argv)>2 and sys.argv[1]=='-t' :     
         practice=0
         dataday=datetime.strptime(sys.argv[2],'%Y%m%d')
-        generate_stock_html_mode2(dataday,mode='xxx')        
+        _list= [
+        #['2031','新光鋼'],
+        #['8463','潤泰材'],
+        #['9902','台火'],
+        #['4523','永彰'],
+        #['6234','高僑'],
+        ['8155','博智']]
+        
+        #d = {'stock_id': ['8155','6234'], 'stock_name': ['博智','高僑']}
+        d2=pd.DataFrame(_list,columns=['stock_id','stock_name'])
+        generate_stock_html_mode2(dataday,mode='營收關鍵K大戶買超',in_df=[d2])
+     
     else :
         practice=0
         dataday=datetime.strptime(sys.argv[1],'%Y%m%d')
