@@ -677,8 +677,8 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
 
     df_o = pd.DataFrame(np.empty(( 1, len(outcols))) * np.nan, columns = outcols)   
     #raise
-    dst_folder='data/fut'
-    out_file='data/fut/fut_day_report_fin.csv'
+    dst_folder='final'
+    out_file='final/fut_day_report_fin.csv'
     check_dst_folder(dst_folder)
     dw=1
     df_fut_close=down_fut_close(enddate,download=dw,debug=1)
@@ -866,7 +866,7 @@ def get_fut_op_big3_top10_data_by_date(enddate):
             '外資及陸資買賣差額',
             '外資自營商買賣差額',
             ]
-    out_file='data/fut/fut_day_report_fin.csv'
+    out_file='final/fut_day_report_fin.csv'
     if os.path.exists(out_file): 
         df_s = pd.read_csv(out_file,encoding = 'utf-8',dtype={'日期': 'str'})
         #print(lno(),df_s)
@@ -879,7 +879,44 @@ def get_fut_op_big3_top10_data_by_date(enddate):
     return pd.DateFrame()    
     pass
 
- 
+
+def dw_major_power(enddate,download=0,debug=0xff): 
+    filename='{}/dw_major_power.{}'.format(save_path,enddate.strftime('%Y%m%d'))
+    check_dst_folder(save_path)
+    datestr = enddate.strftime('%Y/%m/%d')    
+    #url = 'https://fubon-ebrokerdj.fbs.com.tw/Z/ZG/ZGB/ZGB.djhtm'
+    url = 'http://5850web.moneydj.com/Z/ZG/ZGB/ZGB.djhtm'
+    print(lno(),"test")
+    if download==1:
+        try:
+            page = requests.get(url)
+        except:
+            print(lno(),url)    
+            raise
+        if not page.ok:
+            print(lno(),"Can not get data at {}".format(url))
+            return 
+        with open(filename, 'wb') as file:
+            # A chunk of 128 bytes
+            for chunk in page:
+                file.write(chunk)
+    if not os.path.exists(filename): 
+        return pd.DataFrame()
+    print(lno(),filename)    
+    try:
+        soup = BeautifulSoup(filename,'lxml')
+        #[0]将返回的list改为bs4类型
+        content = soup.select('#Table')[0] 
+        tbl = pd.read_html(content.prettify(),header = 0)[0]    
+        df = pd.read_html(filename)
+        print(lno(),len(df))
+        print(df[1])
+    except:
+        print(lno(),filename,"ng file")
+        return pd.DataFrame()  
+    
+    pass
+
 if __name__ == '__main__':
     #print (lno(),sys.path[0])
     #get_cur_twii_list(datetime.today())
@@ -926,6 +963,15 @@ if __name__ == '__main__':
         except:
             enddate=startdate
         down_fut_op_big3_top10_datas(startdate,enddate)   
+    elif sys.argv[1]=='-d2' :
+        try:
+            enddate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            print (lno(),'func -p enddate ')
+            raise   
+        print(lno())
+        dw_major_power(enddate)
+        
     elif sys.argv[1]=='-g1' :
         try:
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')

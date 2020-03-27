@@ -1555,7 +1555,7 @@ def op_plot_v1(date,debug=0):
         df['OP分析圖'] = df['OP分析圖'].apply(lambda x: '<img src="{}" style="max-height:450px;"/>'.format(x) if x else '') 
         filen='day_report/%d%02d%02d/op.html'%(date.year,date.month,date.day)
         old_width = pd.get_option('display.max_colwidth')
-        pd.set_option('display.max_colwidth', None)
+        pd.set_option('display.max_colwidth', -1)
         df.to_html(filen,escape=False,index=False,sparsify=True,border=2,index_names=False)
         pd.set_option('display.max_colwidth', old_width) 
         PdfFilename='day_report/%d%02d%02d/op.pdf'%(date.year,date.month,date.day)

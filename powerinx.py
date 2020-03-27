@@ -169,7 +169,7 @@ def download_tse_sectinx(dataday):
     #print (lno(),list(gold))
     print (lno(),gold.shape)
     if gold.shape[1]==5:
-    gold.columns=['name','close','sign','diff','diff_percent']
+        gold.columns=['name','close','sign','diff','diff_percent']
     elif gold.shape[1]==6:
         gold.columns=['name','close','sign','diff','diff_percent','dummy']  
         gold=gold.drop('dummy',axis=1)  
