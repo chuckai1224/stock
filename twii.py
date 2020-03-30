@@ -508,7 +508,14 @@ def trend2str(x):
     if (x>0):
         return '多 :'+str
     return '空:'+str    
-def show_twii_v1(objdatetime,debug=0):
+def op_cv1(x):
+    #print(lno(),x)
+    tmp=x.strip().split(' ')[0]
+    if type(tmp)==str:
+        #print(lno(),tmp)
+        return float(tmp)
+    return np.nan
+def show_twii_v1_org(objdatetime,debug=0):
     df=get_days_twii_fin(objdatetime,20)
     if len(df)==0:
         return 
@@ -646,41 +653,43 @@ def show_twii_v1(objdatetime,debug=0):
     df2.to_html(filen,escape=False,index=False,sparsify=True,border=2,index_names=False)
     pd.set_option('display.max_colwidth', old_width)   
     
-   
-"""    
-def get_tse_exchange_data(selday,debug=0):
-    #date_str = selday.strftime('%Y/%m/%d')
-    filename ='csv/data/tse/{}'.format(selday.strftime('%Y%m%d'))
+def show_twii_v1(objdatetime,debug=0):
+    startdate=datetime.strptime('20190801','%Y%m%d')
+    df=get_days_twii_fin_v1(startdate,objdatetime)
+    if len(df)==0:
+        return 
     if debug==1:
-        print (lno(),filename)
-    if os.path.exists(filename):
-        df_s = pd.read_csv(filename,encoding = 'utf-8',dtype={'stock_id': 'str'})
-        df_s.dropna(axis=1,how='all',inplace=True)
-        df_s.dropna(inplace=True)
-        df_s['date']=selday
-        if debug==1:
-            print (lno(),df_s)
-        return df_s    
-    else:
-        print (lno(),filename,"not exit pls check")
-        return []
-def get_otc_exchange_data(selday,debug=0):
-    #date_str = selday.strftime('%Y/%m/%d')
-    filename ='csv/data/otc/{}'.format(selday.strftime('%Y%m%d'))
+        print(lno(),df)
+        print(lno(),df.columns)
+    
+    startdate=df.iloc[-1]['日期']
+    enddate=df.iloc[0]['日期']
+    #print(lno(),type(startdate),startdate,enddate)
+    #print(lno(),type(startdate.to_pydatetime()),startdate.to_pydatetime(),enddate)
+    df2=stock_bs_analy.get_stock_bs_bydate(startdate.to_pydatetime(),enddate.to_pydatetime())
+    
+    df2['日期']=[date_sub2time64(x) for x in df2['日期'] ]
+    #print(lno(),df2)
+    df=pd.merge(df,df2)
+    df_big8=twse_big3.get_big8_df()
+    df_big8['日期']=[date_slash2time64(x) for x in df_big8['日期'] ]
+
+    df=pd.merge(df,df_big8,how='left')
+    
+    df['量']=df['量'].astype('int')    
+    df['5ma趨勢']=[trend2str(x) for x in df['5ma趨勢'] ]       
+    df['20ma趨勢']=[trend2str(x) for x in df['20ma趨勢'] ]       
+    df['均差']=df['均差'].astype('int')    
+    			
+    df['買權留倉最大量']=[op_cv1(x) for x in df['買權留倉最大量'] ]   
+    df['賣權留倉最大量']=[op_cv1(x) for x in df['賣權留倉最大量'] ]   
+    df['買權留倉增加最多']=[op_cv1(x) for x in df['買權留倉增加最多'] ]   
+    df['賣權留倉增加最多']=[op_cv1(x) for x in df['賣權留倉增加最多'] ]    
+    df.to_csv('final/day_report.csv',encoding='utf-8', index=False)
     if debug==1:
-        print (lno(),filename)
-    if os.path.exists(filename):
-        df_s = pd.read_csv(filename,encoding = 'utf-8',dtype={'stock_id': 'str'})
-        df_s.dropna(axis=1,how='all',inplace=True)
-        df_s.dropna(inplace=True)
-        df_s['date']=selday
-        if debug==1:
-            print (lno(),df_s)
-        return df_s    
-    else:
-        print (lno(),filename,"not exit pls check")
-        return []     
-"""    
+        print(lno(),df)
+    
+
 def get_stock_tse_df(stock_id,df):
     df1=df[(df.loc[:,"stock_id"] == stock_id) ].sort_values(by='date', ascending=True)
     
@@ -810,7 +819,25 @@ def get_days_twii_fin(seldate,cnt,debug=1):
         else :
             return []
     else :
-        return []        
+        return [] 
+     
+def get_days_twii_fin_v1(startdate,enddate,debug=1):
+    fin_file='csv/twii/twii_data_fin.csv'
+    if os.path.exists(fin_file): 
+        if debug==1:
+            print(lno(),"test")
+        df_s = pd.read_csv(fin_file,encoding = 'utf-8')
+        #df_s.dropna(axis=1,how='all',inplace=True)
+        #df_s.dropna(inplace=True)
+        df_s['日期']=[date_sub2time64(x) for x in df_s['日期'] ]
+        
+        df=df_s[(df_s.loc[:,"日期"] <= np.datetime64(enddate))&(df_s.loc[:,"日期"] >= np.datetime64(startdate))]
+        if len(df)!=0:
+            return df
+        
+            
+    else :
+        return pd.DataFrame()
 ## TODO regen data for fix bug        
 def check_twii_fin(seldata,debug=1,regen=0):
     fin_file='csv/twii/twii_data_fin.csv'
@@ -850,63 +877,7 @@ def check_twii_fin(seldata,debug=1,regen=0):
         print(lno(), df1['date'][df1.index[0]], df1['date'][df1.index[-1]])
         print(lno(), df1.tail(5))
 
-    #raise
-    """     
-    for i in  range(0,len(df1)):
-    #for i in  range(0,3):
-        if debug==2:
-            print(lno(), df1.tail(5))  
-        df_tse_day=comm.get_tse_exchange_data(df1.at[i,'date']) 
-        if debug==2:
-            print(lno(), df_tse_day.tail(5))   
-        df_otc_day=comm.get_otc_exchange_data(df1.at[i,'date'])   
-        if debug==2:
-            print(lno(), df_otc_day.tail(5))   
-        if i==0 :
-            df_tse=df_tse_day
-            tse_list_tmp=df_tse_day['stock_id'].values.tolist()
-            df_otc=df_otc_day
-            otc_list_tmp=df_otc_day['stock_id'].values.tolist()
-        else:
-            print(lno(),len(df_tse),df_tse.dtypes)
-            print(lno(),len(df_tse_day),df_tse_day.dtypes)
-            
-            df_tse=df_tse.append(df_tse_day,ignore_index=True)
-            df_otc=df_otc.append(df_otc_day,ignore_index=True)
-            
-            #df_tse=pd.concat([df_tse,df_tse_day])
-            #df_otc=pd.concat([df_otc,df_otc_day])
-            
-            #raise
-            
-    """        
-    """
-    tse_list=[]
-    for i in  comm.get_tse_exchange_data(df1.at[0,'date'])['stock_id'].values.tolist():
-        if i[0]=='0' and i[1]=='0':
-            continue
-        if i[0]=='0' and i[1]=='1':
-            continue    
-        if len(i)==5:
-            continue 
-        if len(i)==6:
-            continue     
-        tse_list.append(i)    
-    otc_list=[]
-    #print(lno(),otc_list_tmp)
-    for i in  comm.get_tse_exchange_data(df1.at[0,'date'])['stock_id'].values.tolist():
-        if i[0]=='0' and i[1]=='0':
-            continue
-        if i[0]=='0' and i[1]=='1':
-            continue    
-        if len(i)==5:
-            continue 
-        if len(i)==6:
-            continue     
-        otc_list.append(i)
-    print(lno())        
-    #print(lno(),otc_list)        
-    """
+    
     tStart = time.time()
     tse_l1,tse_s1,tse_l2,tse_s2,ll0,ss0=get_stock_long_short_list(comm.get_tse_exchange_data(seldata,ver=1)['stock_id'].values.tolist(),seldata) 
     tEnd = time.time()

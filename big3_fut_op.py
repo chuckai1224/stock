@@ -344,7 +344,7 @@ def get_fut_op_big3_dfs_bydate(stardate,enddate):
     now_date = enddate
     day=0
     outcols=['日期','外期貨','外選擇權','自期貨','自選擇權','投期貨','投選擇權']
-    df_s=pd.DataFrame(pd.np.empty(( 1, len(outcols))) * pd.np.nan, columns = outcols)
+    df_s=pd.DataFrame(np.empty(( 1, len(outcols))) * np.nan, columns = outcols)
     while   now_date>=stardate :
         now_date = enddate - relativedelta(days=day)
         df=get_fut_op_big3_df_bydate(now_date) 
