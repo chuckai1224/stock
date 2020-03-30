@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 #from __future__ import unicode_literals
 import io
 import csv
@@ -335,10 +335,10 @@ def get_fut_op_big3_df_bydate(date,debug=0):
                 print(lno(),df1)
             return df1
         
-        return pd.DataFrame(pd.np.empty(( 1, len(outcols))) * pd.np.nan, columns = outcols)
+        return pd.DataFrame(np.empty(( 1, len(outcols))) * np.nan, columns = outcols)
         
     else :
-        return pd.DataFrame(pd.np.empty(( 1, len(outcols))) * pd.np.nan, columns = outcols)
+        return pd.DataFrame(np.empty(( 1, len(outcols))) * np.nan, columns = outcols)
      
 def get_fut_op_big3_dfs_bydate(stardate,enddate):
     now_date = enddate

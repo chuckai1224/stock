@@ -22,6 +22,7 @@ import taiwan_dollar
 import op
 import powerinx
 import stock_bs_analy
+import fut
 #import pyecharts
 #from pyecharts import Kline
 #from pyecharts import Candlestick
@@ -688,6 +689,7 @@ def show_twii_v1(objdatetime,debug=0):
     df.to_csv('final/day_report.csv',encoding='utf-8', index=False)
     if debug==1:
         print(lno(),df)
+    fut.gen_final_html()    
     
 
 def get_stock_tse_df(stock_id,df):

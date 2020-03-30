@@ -833,7 +833,23 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
             df_s.to_csv(out_file,encoding='utf-8', index=False)
         else :
             df_o.to_csv(out_file,encoding='utf-8', index=False)   
-    
+##=IMPORTDATA("https://raw.githubusercontent.com/chuckai1224/final/master/day_report.csv")
+def gen_final_html():
+    out_file='final/fut_day_report_fin.csv'
+    if os.path.exists(out_file): 
+        df1 = pd.read_csv(out_file,encoding = 'utf-8',dtype={'日期': 'str'})    
+    out_file='final/day_report.csv'
+    if os.path.exists(out_file): 
+        df2 = pd.read_csv(out_file,encoding = 'utf-8',dtype={'日期': 'str'})
+    df_o=pd.merge(df1,df2,how='left')  
+    print(lno(),"teeee")
+    #df_o.to_csv('final/test.csv',encoding='utf-8', index=False) 
+    old_width = pd.get_option('display.max_colwidth')
+    pd.set_option('display.max_colwidth', -1)
+    #df.to_html('files.html',escape=False,index=False,sparsify=True,border=0,index_names=False,header=False)
+    df_o.to_html('final/fut_day_report_fin.html',escape=False,index=False,sparsify=True,border=2,index_names=False)
+    pd.set_option('display.max_colwidth', old_width)    
+         
 def down_fut_op_big3_top10_datas(startdate,enddate):
     nowdate=enddate
     print(lno(),startdate,enddate)
@@ -841,6 +857,8 @@ def down_fut_op_big3_top10_datas(startdate,enddate):
         print(lno(),nowdate)
         down_fut_op_big3_top10_data_bydate(nowdate) #download 期貨收盤價
         nowdate = nowdate - relativedelta(days=1)
+    print(lno(),nowdate)
+    gen_final_html()
 
 def get_fut_op_big3_top10_data_by_date(enddate):
     filter1=['日期','期貨收盤價',#0
