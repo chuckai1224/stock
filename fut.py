@@ -846,8 +846,9 @@ def gen_final_html():
     #df_o.to_csv('final/test.csv',encoding='utf-8', index=False) 
     old_width = pd.get_option('display.max_colwidth')
     pd.set_option('display.max_colwidth', -1)
-    #df.to_html('files.html',escape=False,index=False,sparsify=True,border=0,index_names=False,header=False)
+        ##=IMPORThtml("https://raw.githubusercontent.com/chuckai1224/final/master/fut_day_report_fin.html","table",0)
     df_o.to_html('final/fut_day_report_fin.html',escape=False,index=False,sparsify=True,border=2,index_names=False)
+    df_o.to_csv('final/mix_report_fin.csv',encoding='utf-8', index=False)
     pd.set_option('display.max_colwidth', old_width)    
          
 def down_fut_op_big3_top10_datas(startdate,enddate):
