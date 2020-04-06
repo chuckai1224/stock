@@ -1171,6 +1171,7 @@ class tdcc_dist():
                 continue
             table_names = self.engine.table_names()
             if stock_id not in table_names:
+                print(lno(),stock_id,"no exist in sql table need to create")
                 continue
             print(lno(),stock_id)
             #ddate=datetime.strptime(date,'%Y%m%d')
@@ -1194,22 +1195,24 @@ class tdcc_dist():
         print(lno(),len(ll))
         pass
     def csv2sql_all(self,date):    
-        ll=comm.get_tse_exchange_data(date)['stock_id'].values.tolist()+comm.get_otc_exchange_data(date)['stock_id'].values.tolist()
+        ll=comm.get_tse_exchange_data(date,ver=1)['stock_id'].values.tolist()+comm.get_otc_exchange_data(date,ver=1)['stock_id'].values.tolist()
         check=0
         for stock_id in ll:
             #print(lno(),stock_id)
             if len(stock_id)!=4:
                 continue
-            table_names = self.engine.table_names()
-            #if stock_id in table_names:
-            #    continue
+            
             print(lno(),stock_id)
             """
-            if stock_id=='9103':
+            if stock_id=='6706' or stock_id=='6698' or stock_id=='6690':
                 check=1
             if check==0:
                 continue
             """
+            check=0
+            table_names = self.engine.table_names()
+            #if stock_id in table_names:
+            #    continue
             df_fin = pd.DataFrame(columns=self.columns, dtype=np.int64)
             
             FOLDER='data/csv/dist/{}'.format(stock_id)

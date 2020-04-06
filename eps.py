@@ -38,7 +38,7 @@ def down_tse_eps(year, reason,download=1):
     
     #https://mops.twse.com.tw/mops/web/ajax_t163sb04
     
-    filename='data/eps/tse_%s-%s'%(year, reason)
+    filename='data/eps/tse_%s-%s.html'%(year, reason)
     out_file='data/eps/tse_%s-%s.csv'%(year, reason)
     # 偽瀏覽器
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
@@ -75,8 +75,11 @@ def down_tse_eps(year, reason,download=1):
         return
     #print(lno(),webpage_text)
     dfs = pd.read_html(StringIO(webpage_text))
+    #print(lno(),dfs)
     cnt=0
     for df in dfs:
+        print(lno(),df.columns)
+        """
         if df.iloc[0][0]=='公司代號':
             columns=df.iloc[0].values.tolist();
             print(lno(),columns)
@@ -85,17 +88,20 @@ def down_tse_eps(year, reason,download=1):
             df.rename(columns={'本期綜合損益總額（稅後）':'本期綜合損益總額'}, inplace=True)
             #print(lno(),df.head(1))
             columns=df.columns
+        """
+        if  '公司代號' in df.columns:
+            df.rename(columns={'本期綜合損益總額（稅後）':'本期綜合損益總額'}, inplace=True)   
             df1=df[['公司代號','公司名稱','基本每股盈餘（元）','本期綜合損益總額']].copy()
             df1['毛利率']=0.0
             df1['營利率']=0.0
             df1['純益率']=0.0
             df=df.replace('--',np.NaN)
-            if '營業收入' in columns:
-                if '營業毛利（毛損）淨額' in columns:
+            if '營業收入' in df.columns:
+                if '營業毛利（毛損）淨額' in df.columns:
                     df1['毛利率']=df['營業毛利（毛損）淨額'].astype(float)/df['營業收入'].astype(float)*100
-                if '營業利益（損失）' in columns:
+                if '營業利益（損失）' in df.columns:
                     df1['營利率']=df['營業利益（損失）'].astype(float)/df['營業收入'].astype(float)*100
-                if '本期綜合損益總額' in columns:
+                if '本期綜合損益總額' in df.columns:
                     df1['純益率']=df['本期綜合損益總額'].astype(float)/df['營業收入'].astype(float)*100    
             df1=df1.round({'毛利率': 2, '營利率': 2,'純益率': 2})    
             df_out=pd.concat([df_out,df1])
@@ -114,7 +120,7 @@ def down_otc_eps(year, reason,download=1):
     url = 'https://mops.twse.com.tw/mops/web/ajax_t163sb04'
     
     #https://mops.twse.com.tw/mops/web/ajax_t163sb04
-    filename='data/eps/otc_%s-%s'%(year, reason)
+    filename='data/eps/otc_%s-%s.html'%(year, reason)
     out_file='data/eps/otc_%s-%s.csv'%(year, reason)
     # 偽瀏覽器
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
@@ -153,11 +159,15 @@ def down_otc_eps(year, reason,download=1):
     dfs = pd.read_html(StringIO(webpage_text))
     cnt=0
     for df in dfs:
+        """
         if df.iloc[0][0]=='公司代號':
             columns=df.iloc[0].values.tolist();
             df.columns=columns
             df=df.drop([0])
             print(lno(),columns)
+        """
+        if  '公司代號' in df.columns: 
+            columns=df.columns   
             df1=df[['公司代號','公司名稱','基本每股盈餘（元）','本期綜合損益總額']].copy()
             df1['毛利率']=0.0
             df1['營利率']=0.0
@@ -591,7 +601,7 @@ def down_financial(year, reason,market,type='綜合損益彙總表',download=1):
     else:
         print(lno(),'market does not match')
         return
-    filename='data/eps/%s_%d-%d'%(market,year, reason)
+    filename='data/eps/%s_%d-%d.html'%(market,year, reason)
     out_file='data/eps/%s_%d-%d.csv'%(market,year, reason)
     # 下載該年月的網站，並用pandas轉換成 dataframe
     print(lno(),url)
@@ -674,8 +684,47 @@ def get_last_year_eps(date):
             #print(lno(),df_s)
         else:    
             nowdate = nowdate - relativedelta(years=1)
-    return df_s        
+    return df_s     
+def get_last_year_income(date):
+    nowdate=date
+    get_data=False
+    df_s=pd.DataFrame()
+    while get_data==False:
+        year=str(int(nowdate.year)-1911)
+        season=4
+        file='data/eps/tse_%s-%s'%(year, season)
+        if os.path.exists(file):  
+            df_s = pd.read_html(file,encoding = 'utf8')
+            print(lno(),df_s)
+            """
+            file='data/eps/otc_%s-%s.csv'%(year, season)
+            if os.path.exists(file):  
+                df_otc = pd.read_csv(file,encoding = 'utf-8',dtype= {'公司代號':str})
+                df_s=pd.concat([df_s,df_otc]).reset_index(drop=True)
+            df_s['year']=int(nowdate.year)
+            """
+            get_data=True
+            print(lno(),df_s)
+        else:    
+            nowdate = nowdate - relativedelta(years=1)
+    return df_s   
+ 
 """
+filename='data/eps/tse_%s-%s'%(year, reason)
+    
+    f = open(filename, "r",encoding='UTF-8')
+    webpage_text=f.read()
+    if len(webpage_text)<400 and '查詢無資料' in webpage_text:
+        print(lno(),'查詢無資料')
+        return
+    #print(lno(),webpage_text)
+    dfs = pd.read_html(StringIO(webpage_text))
+    cnt=0
+    for df in dfs:
+        if df.iloc[0][0]=='公司代號':
+            columns=df.iloc[0].values.tolist();
+            print(lno(),columns)
+            df.columns=columns
 產生落於低位階的股票
 """
 def gen_buy_mode1(date):
@@ -716,22 +765,7 @@ if __name__ == '__main__':
    
         else :
               print (lno(),'func -p startdata enddate') 
-    elif sys.argv[1]=='-e' :
-        #print (lno(),len(sys.argv))
-        if len(sys.argv)==4 :
-            # 從今日往前抓一個月
-            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            now_start = startdate
-            now_end = now_start + relativedelta(days=1)
-            day=0
-            while   now_end<=enddate :
-                down_optData(now_start,now_end) 
-                now_start=now_end
-                now_end = now_start + relativedelta(days=1)
-            down_optData(now_start,enddate)     
-        else :
-              print (lno(),'func -p startdata enddate')           
+         
     elif sys.argv[1]=='-g' :
         """
         read down eps file to csv/eps/final/stock_id.profit
@@ -796,9 +830,9 @@ if __name__ == '__main__':
         season=int(sys.argv[2])
        
         #down_financial(year,reason,'tse',type='綜合損益彙總表',download=1)
-        down_tse_eps(year,season,1)
-        down_otc_eps(year,season,1)
-        gen_eps(year,season)
+        down_tse_eps(year,season,0)
+        down_otc_eps(year,season,0)
+        #gen_eps(year,season)
         
     else:
         print (lno(),"usage: eps.py 108 1 ")

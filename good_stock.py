@@ -44,7 +44,7 @@ import shutil
 import talib
 from talib import abstract
 import scipy.signal as signal 
-from stocktool import comm as cm1 
+#from stocktool import comm as cm1 
 import platform
 import all_stock
 import seaborn as sns
@@ -373,6 +373,66 @@ def gen_buy_list(date):
     #    df_fin=pd.concat([df_fin,df1])
     #df_fin.to_sql(name='find_fund_buy_v2', con=con, if_exists='replace', index=False,chunksize=10)       
     #print(lno(),df_fin)
+   
+def get_gg_income_ratio(r):
+    ratio1=np.nan
+    result=np.nan
+    if r.stock_id.startswith('00'):
+        return 0
+    if len(r.stock_id)!=4:
+        return 0
+    income=get_sql_income()
+    #資料日的前一個月
+    date=r.date-relativedelta(months=1)
+    #當有輸入比較資料月
+    if r.rev_month!=0:
+        year=date.year
+        if r.rev_month >date.month:
+            year=year-1
+        month=r.rev_month
+        date=datetime(year,month,1)
+
+        
+    #
+    df =income.get_by_stockid_date_months(r.stock_id,date,4,debug=1) 
+    if len(df)<2:
+        print(lno(),r.stock_id)
+        return 0
+    if r.rev_month!=0 and df.iloc[-1]['date'].month!=r.rev_month:
+        print(lno(),df.iloc[-1]['date'].year,df.iloc[-1]['date'].month) 
+        return 0
+    
+    if df.iloc[-1]['去年同月增減(%)']<20:
+        return 0
+    if df.iloc[-2]['去年同月增減(%)']>20:
+        return 0
+    return df.iloc[-1]['去年同月增減(%)']
+    #print(lno(),df[['date','公司代號','公司名稱','去年同月增減(%)']])
+    #print(lno(),get_market_value(r))
+    
+          
+def gen_gg_buy_list(date,rev_month):
+    markets=['tse','otc']
+    d1=comm.exchange_data('tse').get_df_date_parse(date)
+    d1['market']='tse'
+    d2=comm.exchange_data('otc').get_df_date_parse(date)
+    d2['market']='otc'
+    #d=pd.concat([d1,d2])
+    d=d1
+    #print(lno(),d)
+    if len(d.index)==0:
+        return 
+    #
+    d['rev_month']=rev_month
+    d['月營收成長']=d.apply(get_gg_income_ratio,axis=1)  
+    d1=d[(d['月營收成長']>=20)].reset_index(drop=True)
+    d1['市值']=d1.apply(get_market_value,axis=1)
+    d1=d1[d1['市值']<40]
+    print(lno(),d1)
+    d1.to_csv('./test.csv',encoding='utf-8', index=False)
+    
+    
+        
 def get_market_value(r):
     #return 億
     date=r.date
@@ -382,12 +442,21 @@ def get_market_value(r):
     if total_stock_nums==0:
         return 
     stk=get_stock_data()    
-    df=stk.get_df_by_startdate_enddate(stock_id,date,date+relativedelta(days=1))    
+    df=stk.get_df_by_startdate_enddate(stock_id,date-relativedelta(days=7),date+relativedelta(days=1))   
+     
     if len(df.index)==0:
         return 
     #print(lno(),r.stock_id,total_stock_nums)        
-    #print(lno(),df)    
-    return  df.iloc[0]['close']* total_stock_nums /100000000
+    #print(lno(),df)
+    try:
+        market_value=df.iloc[-1]['close']* total_stock_nums /100000000
+    except:
+        print(lno(),r)
+        #print(lno(),df.iloc[0]['close'],total_stock_nums)
+        #df=stk.get_df_by_startdate_enddate(stock_id,date-relativedelta(days=7),date+relativedelta(days=1))  
+        #print(lno(),df)
+        raise        
+    return  market_value
 def find_fund_buy_fix(r):
     try :
         sb3=get_stock_big3()
@@ -1696,6 +1765,13 @@ def longred_analy_mode(startdate,enddate,mode):
     #df_fin.style.applymap(show,subset=['5日勝率'])
     
     print(lno(),df_fin)    
+def gen_out_stock_df():
+    df = pd.read_csv('test.csv',encoding = 'utf-8')
+    ##大戶周增加比率 散戶周增加比率
+    ##大戶4周增加比率 散戶4周增加比率
+    d=df[['stock_id','stock_name','date','market','市值']]
+    print(lno(),d)
+    pass
 """
 我永遠都在尋找四種股票
 1.市值接近歷史低檔區的景氣循環股
@@ -1721,7 +1797,8 @@ if __name__ == '__main__':
     
     if len(sys.argv)==1:
         startdate=datetime(2019,12,13)  
-        gen_buy_list_step1(startdate)  
+        #gen_buy_list_step1(startdate)  
+        gen_out_stock_df()
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
         if len(sys.argv)==3 :
@@ -1837,16 +1914,17 @@ if __name__ == '__main__':
             table_name='find_fund_buy_v2'
             gen_analy_data(startdate,enddate,table_name,method)                         
     elif sys.argv[1]=='gg' :
-        if len(sys.argv)==4 :
-            ## TODO gg gen_analy_data
-            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-            #method=[get_analy_1,mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day,get_income_ratio,get_big3_buy_vol]
-            method=[get_analy_1]
-            #method=[mv5_vol_ratio,over_prev_high,upper_shadow,ma_tangled_day,get_income_ratio,get_big3_buy_vol]
-            #table_name='find_point_K'
-            table_name='find_fund_buy_v2'
-            gen_analy_data(startdate,enddate,table_name,method)                        
+        ## TODO gg gen_analy_data
+        try:    
+            nowdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            nowdate=stock_comm.get_date()  
+        try:    
+            rev_month=int(sys.argv[3])
+        except:
+            rev_month=0
+              
+        gen_gg_buy_list(nowdate,rev_month)                      
     elif sys.argv[1]=='r' :
         if len(sys.argv)==4 :
             ## TODO r report all 分析 大小市值 斜率

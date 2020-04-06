@@ -833,7 +833,7 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
             df_s.to_csv(out_file,encoding='utf-8', index=False)
         else :
             df_o.to_csv(out_file,encoding='utf-8', index=False)   
-##=IMPORTDATA("https://raw.githubusercontent.com/chuckai1224/final/master/day_report.csv")
+##=IMPORTDATA("https://raw.githubusercontent.com/chuckai1224/final/master/day_report.csv")c
 def gen_final_html():
     out_file='final/fut_day_report_fin.csv'
     if os.path.exists(out_file): 
@@ -894,7 +894,7 @@ def get_fut_op_big3_top10_data_by_date(enddate):
         #df1=df[]
         #print(lno(),df_s)
         return df
-    return pd.DateFrame()    
+    return pd.DataFrame()    
     pass
 
 

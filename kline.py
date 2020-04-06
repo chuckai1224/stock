@@ -6,7 +6,8 @@ import time
 import sys
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from mpl_finance import candlestick_ohlc
+#from mpl_finance import candlestick_ohlc
+from mplfinance.original_flavor import candlestick_ohlc
 import matplotlib.pyplot as plt
 #import matplotlib.ticker as ticker
 from matplotlib import ticker as mticker
@@ -27,7 +28,7 @@ import seaborn as sns
 import matplotlib as mpl
 import stock_comm as comm
 from matplotlib import ticker
-import mpl_finance
+import mplfinance
 def lno():
     cf = currentframe()
     filename = getframeinfo(cf).filename

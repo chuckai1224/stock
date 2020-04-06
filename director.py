@@ -13,9 +13,9 @@ import requests
 from io import StringIO
 from inspect import currentframe, getframeinfo
 from sqlalchemy import create_engine
+import stock_comm as comm
 import inspect
 import traceback
-import stock_comm as comm
 DEBUG=1
 LOG=1
 def lno():
@@ -231,7 +231,7 @@ def down_otc_monthly_report(year, month):
     print(lno(),len(df))
     
     return 
-def gen_revenue_good_list(enddate,ver=1,debug=0):
+def gen_revenue_good_list(enddate,ver=1):
     ## TODO: add sql need test
     if ver==1:
         in1=income()
@@ -268,12 +268,8 @@ def gen_revenue_good_list(enddate,ver=1,debug=0):
         if stock_no in p_b20_list:
             df.at[i,'pmonth']=False
     df1=df[(df.loc[:,"pmonth"] == True)].copy().reset_index(drop=True)
-    if debug ==1:
-        print(lno(),df1)
-        print(lno(),df1.iloc[0])
-        print(lno(),len(df1))
+    print(lno(),len(df1))
     df1=df1[['公司代號','公司名稱','去年同月增減(%)','前期比較增減(%)']]
-    df1.columns=['stock_id','stock_name','單月年增率','累計年增率']
     #print(df1)
     out_file='csv/rev_good.csv'
     df1.to_csv(out_file,encoding='utf-8', index=False)
@@ -323,91 +319,16 @@ def check(r):
     except:
         #print(lno(),r[0],type(r[0]))
         return 0
+      
         
-        
-class income:
+class director:
     def __init__(self):
-        self.engine = create_engine('sqlite:///sql/income.db', echo=False)
+        self.engine = create_engine('sqlite:///sql/director.db', echo=False)
         self.con = self.engine.connect()
-        self.data_folder='data/revenue' 
+        self.data_folder='data/director' 
         check_dst_folder(self.data_folder)
         
-    def download(self,date,dw=1,ver=2):
-        year=date.year
-        month=date.month
-        # 假如是西元，轉成民國
-        if year > 1990:
-            year -= 1911
-        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
-        index_list=[0,1] 
-        markets=['sii','otc']
-        df_out=pd.DataFrame()
-        for market in markets:
-            for index in index_list:
-                #https://mops.twse.com.tw/nas/t21/sii/t21sc03_108_6_0.html    
-                url = 'https://mops.twse.com.tw/nas/t21/{}/t21sc03_{}_{}_{}.html'.format(market,year,month,index)
-                filename='%s/%s_%d-%02d_%d'%(self.data_folder,market,year, month,index)
-                out_file='%s/%s_%d-%02d_%d.csv'%(self.data_folder,market,year, month,index)
-                # 下載該年月的網站，並用pandas轉換成 dataframe
-                print(lno(),url)
-                if dw==1:
-                    r = requests.get(url, headers=headers)
-                    if not r.ok:
-                        print(lno(),"Can not get data at {}".format(url))
-                        return 
-                    with open(filename, 'wb') as file:
-                        # A chunk of 128 bytes
-                        for chunk in r:
-                            file.write(chunk)
-                try:                
-                    dfs = pd.read_html(filename, encoding='big5hkscs')
-                    #"""
-                    df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
-                
-                    #print(lno(),df.columns)
-                    print(lno(),df.shape)
-                    #print(lno(),df.head())
-                    if 'levels' in dir(df.columns):
-                        #print(lno(),df.columns.get_level_values(1))
-                        #print(lno(),df.columns.get_level_values(0))
-                        df.columns = df.columns.get_level_values(1)
-                    else:
-                        df = df[list(range(0,10))]
-                        print(lno(),df.tail())
-                        column_index = df.index[(df[0] == '公司代號')][0]
-                        df.columns = df.iloc[column_index]
-                    print(lno(),len(df))
-                    if ver==2:
-                        df['check']=df.apply(check,axis=1)
-                        #print(lno(),df.head())
-                        df = df[df['check'] == 1]
-                        df.drop('check', axis=1, inplace = True)
-                        df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
-                        df['去年同月增減(%)'] = pd.to_numeric(df['去年同月增減(%)'], 'coerce')
-                        
-                    else :    
-                        df['當月營收'] = pd.to_numeric(df['當月營收'], 'coerce')
-                        df = df[~df['當月營收'].isnull()]
-                        df = df[df['公司代號'] != '合計']
-                        
-                        if len(df.iloc[-1]['公司代號'])!=4:
-                            df=df[:-1]
-                    if len(df)!=0:    
-                        df_out = pd.concat([df_out,df])     
-                    print(lno(),len(df))
-                except:
-                    pass    
-                #out_file='{}{}.csv'.format(market,index)
-                #df.to_csv(out_file,encoding='utf-8', index=False)
-                #"""
-        #df_out.columns=['公司代號','公司名稱','當月營收','上月營收','去年當月營收','上月比較增減(%)','去年同月增減(%)','當月累計營收','去年累計營收','前期比較增減(%)','dummy']    
-        #df_out.drop_duplicates(subset=['公司名稱'],keep='last',inplace=True)    
-        #out_file='_ttt.csv'
-        #df_out.to_csv(out_file,encoding='utf-8', index=False)
-        print(lno(),len(df_out))  
-        table_name=date.strftime('%Y%m')
-        print(lno(),table_name)
-        df_out.to_sql(name=table_name, con=self.con, if_exists='replace', index=False,chunksize=10)  
+    
     def get_by_stockid_date(self,stock_id,date):
         table_name=date.strftime('%Y%m')
         cmd='SELECT * FROM "{}" WHERE "公司代號" == "{}" '.format(table_name,stock_id)
@@ -451,7 +372,21 @@ class income:
         except :
             print(lno(),'get_by_date read sql fail')
             return pd.DataFrame()
-    
+    def df_to_sql(self,stock_id,df,date):
+        enddate=date+relativedelta(days=1)
+        table_name=stock_id
+        if table_name in self.engine.table_names():
+            cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}" '.format(table_name,date,enddate)
+            df_query= pd.read_sql(cmd, con=self.con, parse_dates=['date'])
+            if len(df_query):
+                print(lno(),"repeat",date)
+                return
+            else:
+                df.to_sql(name=table_name,  con=self.con, if_exists='append',  index= False,chunksize=10)
+            
+        else:    
+            df.to_sql(name=table_name, con=self.con, if_exists='append',  index= False,chunksize=10)    
+
 g_income=None    
 def get_revenue_by_stockid_bydate(stock_id,date,ver=1):
     global g_income
@@ -497,122 +432,279 @@ def get_revenue_by_stockid(stock_id,enddate):
         """
         month=month+1       
     return nowdatetime.month,pd.DataFrame()    
-def down_stock_composite_income(stock_id,download=1,debug=1):
-    dst_folder='data/composite_income/html/'
+g_director=None    
+def get_director():
+    global g_director
+    if g_director==None:
+        print(lno())
+        g_director=director()
+    return g_director 
+def down_stock_director(stock_id,market,date,download=1,debug=1):
+    dst_folder='data/director/html/%s'%(stock_id)
     check_dst_folder(dst_folder)
-    
-    filename='%s/%s.html'%(dst_folder,stock_id)
+    year=int(date.year)
+    month=int(date.month)
+    # 假如是西元，轉成民國
+    if year>=1911:
+        year=year-1911
+    if debug==1:
+        print(lno(),stock_id,year,month)
+    str_ym='%d%02d'%(year,month)
+    filename='%s/down_stock_director.%d%02d'%(dst_folder,year,month)
     # 偽瀏覽器
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+    
+    headers = {'User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'}
     # 下載該年月的網站，並用pandas轉換成 dataframe
+    """
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+    query_params = {
+        'encodeURIComponent':'1',
+        'step':'1',
+        'firstin':'1',
+        'off':'1',
+        'keyword4':'',
+        'code1':'',
+        'TYPEK2':'',
+        'checkbtn':'',
+        'queryName':'co_id',
+        'inpuType':'co_id',
+        'TYPEK':'all',
+        'isnew':'false',
+        'co_id':stock_id,
+        'year':year,
+        'month':month,
+    }
+    url='https://mops.twse.com.tw/mops/web/ajax_stapap1'
+    """
+    url='https://mops.twse.com.tw/mops/web/ajax_stapap1?TYPEK=%s&firstin=true&year=%d&month=%02d&off=1&co_id=%s&step=0'%(market,year,month,stock_id)
     
-    url='http://5850web.moneydj.com/z/zc/zcq/zcq_%s.djhtm'%(stock_id)
     
-    #if os.path.exists(filename):
-    #    return 
+    if os.path.exists(filename):
+        return 
     if download==1 :
         print(lno(),url)
-        r = requests.get(url)
+        try:
+            #r = requests.post(url, data=query_params,timeout=(3.05, 27))
+            r = requests.get(url, timeout=(3.05, 27))
+        except:
+            print(lno(),"ng")
+            r.close() 
+            return    
         if not r.ok:
             print(lno(),"Can not get data at {}".format(url))
+            r.close() 
             return 
         with open(filename, 'wb') as file:
             # A chunk of 128 bytes
             for chunk in r:
                 file.write(chunk)
         r.close()        
-        time.sleep(5)
-        if os.path.getsize(filename)<4096:
-            os.remove(filename)    
+        time.sleep(5)        
+                
     if not os.path.exists(filename): 
         return pd.DataFrame()
     try:    
-        dfs = pd.read_html(filename,encoding = 'big5hkscs')
+        dfs = pd.read_html(filename,encoding = 'utf8')
+    except:
+        print(lno(),filename,"ng file")
+        return pd.DataFrame()                
+    if  len(dfs)>=5 :
+        if str_ym in dfs[2].iloc[0][0]:
+            print(lno(),str_ym,dfs[2].iloc[0][0])
+            df=dfs[4]
+        elif str_ym in dfs[3].iloc[0][0]:    
+            df=dfs[5]
+        else:
+            print(lno(),"data gg")    
+            return
+        print(lno(),df.columns)
+        columns=df[0].tolist()
+        records=df[1].tolist()
+        df1=pd.DataFrame([records],columns=columns)
+        df1['date']=datetime(date.year,date.month,1)
+        print(lno(),df1)
+        _director=get_director()
+        _director.df_to_sql(stock_id,df1,datetime(date.year,date.month,1))
+        #print(lno(),dfs[4]['1'])
+    else:    
+        print(lno(),dfs)                
+        print(lno(),len(dfs))
+        print(lno(),str_ym,dfs[2].iloc[0][0])
+        os.remove(filename)
+        
+ 
+            
+    
+def down_stock_director_goodinfo(stock_id,download=0,debug=1):
+    dst_folder='data/director/goodinfo'
+    check_dst_folder(dst_folder)
+    if debug==1:
+        print(lno(),stock_id)
+    filename='%s/%s.html'%(dst_folder,stock_id)
+    # 偽瀏覽器
+  
+    url='https://goodinfo.tw/StockInfo/StockDirectorSharehold.asp?STOCK_ID=%s'%(stock_id)
+    header='user-agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
+    cmd='curl -H "{}" {} -o {}'.format(header,url,filename)
+    print(lno(),cmd)
+    #if os.path.exists(filename):
+    #    return 
+    if download==1:
+        os.system(cmd)
+        print(lno(),"filesize:",os.path.getsize(filename))
+        time.sleep(5)
+        if os.path.getsize(filename)<2048:
+            os.remove(filename)  
+    ##only download
+                       
+    if not os.path.exists(filename): 
+        return pd.DataFrame()
+    try:    
+        dfs = pd.read_html(filename,encoding = 'utf8')
     except:
         print(lno(),filename,"ng file")
         return pd.DataFrame()
+    if '全體董監持股' in dfs[11].columns:
+        df=dfs[11]
+        df.columns=range(0,21)
+        if debug==1:
+            #print(lno(),dfs)  
+            #print(lno(),len(dfs)  )
+            #print(lno(),df) 
+            #print(lno(),df[[0,15,16,17,20]])
+            d=df[[0,15,16,17]].copy()
+            d.columns=['date','全體董監持股張數','全體董監持股(%)','全體董監持股增減']
+            def string_to_time(string):
+                
+                if '/' in string:
+                    year, month = string.split('/')
+                if '-' in string:
+                    year, month = string.split('-')   
+                if int(year)>=1911:
+                    return datetime(int(year) , int(month), 1)
+            d['date']=d['date'].apply(string_to_time)
+            #d['date']= pd.to_datetime(d['date'], format='%Y/%m/%d')
+            d=d.replace('-',np.NaN)
+            d=d.dropna(thresh=2)
+            print(lno(),d)
+        engine=comm.get_stock_sql_engine(stock_id)
+        comm.stock_df_to_sql(engine,'director',d)       
+
+def get_stock_director_df_goodinfo(stock_id,download=1,debug=1):
+    dst_folder='data/director/goodinfo'
+    check_dst_folder(dst_folder)
     if debug==1:
-        #print(lno(),dfs)
-        print(lno(),len(dfs))
-        #print(lno(),dfs[1].iloc[0][0] )
-        
-        
-    if len(dfs)>=3 and '綜合損益表' in dfs[1].iloc[0][0]:
-        df=dfs[2]
-        outcols=df[0]
-        d= pd.DataFrame(np.empty(( len(df.columns), len(outcols))) * np.nan, columns = outcols)
-        #print(lno(),df[1])
-        for i in range(1,len(df.columns)):
-            d.iloc[i-1]=df[i].tolist()
-        d.dropna(axis=0,how='all',inplace=True)
-        try:
-            d1=d[['期別','營業收入淨額','營業毛利','研究發展費','每股盈餘']]
-        except:
-            print(lno(),df)    
-            return pd.DataFrame()
-        print(lno(),d1)
-        #engine=comm.get_stock_sql_engine(stock_id)
-        #comm.stock_df_to_sql(engine,'composite_income_sheet(season)',d1)
-    else:
-        print(lno(),len(dfs))
-        print(lno(),dfs[1].iloc[0][0] )  
-        raise       
-        
-def download_all_stock_111():
+        print(lno(),stock_id)
+    filename='%s/%s.html'%(dst_folder,stock_id)
+    # 偽瀏覽器
+  
+    url='https://goodinfo.tw/StockInfo/StockDirectorSharehold.asp?STOCK_ID=%s'%(stock_id)
+    header='user-agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
+    cmd='curl -H "{}" {} -o {}'.format(header,url,filename)
+    #if os.path.exists(filename):
+    #    return 
+    if download==1:
+        print(lno(),cmd)
+        os.system(cmd)
+        print(lno(),"filesize:",os.path.getsize(filename))
+        time.sleep(5)
+        if os.path.getsize(filename)<2048:
+            os.remove(filename)  
+    ##only download
+                       
+    if not os.path.exists(filename): 
+        return pd.DataFrame()
+    try:    
+        dfs = pd.read_html(filename,encoding = 'utf8')
+    except:
+        print(lno(),filename,"ng file")
+        return pd.DataFrame()
+    if '全體董監持股' in dfs[11].columns:
+        df=dfs[11]
+        df.columns=range(0,21)
+        d=df[[0,15,16,17]].copy()
+        d.columns=['date','全體董監持股張數','全體董監持股(%)','全體董監持股增減']
+        def string_to_time(string):
+            if '/' in string:
+                year, month = string.split('/')
+            if '-' in string:
+                year, month = string.split('-')   
+            if int(year)>=1911:
+                return datetime(int(year) , int(month), 1)
+        d['date']=d['date'].apply(string_to_time)
+        #d['date']= pd.to_datetime(d['date'], format='%Y/%m/%d')
+        d=d.replace('-',np.NaN)
+        d=d.dropna(thresh=2)
+        return d.reset_index(drop=True)
+    return pd.DataFrame()     
+                        
+def download_all_stock_director_goodinfo():
+    nowdate=startdate
     date=datetime(2020,4,1)
     d1=comm.exchange_data('tse').get_df_date_parse(date)
-    d1['market']='tse'
+    d1['market']='sii'
     d2=comm.exchange_data('otc').get_df_date_parse(date)
     d2['market']='otc'
     d=pd.concat([d1,d2])
     stock_list=d['stock_id'].tolist()
-    for stock_id in stock_list:
+    for i in range(0,len(d)) :
+        stock_id=d.iloc[i]['stock_id']
         if len(stock_id)!=4:
             continue
         if stock_id.startswith('00'):
             continue
-        down_stock_111(stock_id)
+        down_stock_director_goodinfo(stock_id)
 
+def download_all_stock_director(startdate,enddate):
+    nowdate=startdate
+    date=datetime(2020,4,1)
+    d1=comm.exchange_data('tse').get_df_date_parse(date)
+    d1['market']='sii'
+    d2=comm.exchange_data('otc').get_df_date_parse(date)
+    d2['market']='otc'
+    d=pd.concat([d1,d2])
+    stock_list=d['stock_id'].tolist()
+    while   nowdate<=enddate :
+        
+        for i in range(0,len(d)) :
+            stock_id=d.iloc[i]['stock_id']
+            market=d.iloc[i]['market']
+            if len(stock_id)!=4:
+                continue
+            if stock_id.startswith('00'):
+                continue
+            down_stock_director(stock_id,market,nowdate)
+        nowdate = nowdate + relativedelta(months=1) 
+        
 if __name__ == '__main__':
 
-    income=income()
+    sql_data=director()
     if len(sys.argv)==1:
         startdate=datetime.today().date()
         
-        income.download(now_date) #new
-        #down_tse_monthly_report(int(startdate.year),int(startdate.month)-1)
-        #down_otc_monthly_report(int(startdate.year),int(startdate.month)-1)
-    elif sys.argv[1]=='gg' :
-        
-        download_all_stock_111()
-        
+        #nowdate=datetime(2020,2,1)
+        #down_stock_director_goodinfo('6152')
+        download_all_stock_director_goodinfo()
+        #down_stock_director('6152',nowdate)
+        """
+        startdate=datetime(2018,1,1)
+        enddate=datetime(2020,2,1)
+        download_all_stock_director(startdate,enddate)
+        """
+
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
-        
-        startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
-        try:
+        if len(sys.argv)==4 :
+            # 從今日往前抓一個月
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
-        except:
-            enddate=startdate    
-        now_date = startdate 
-        while   now_date<=enddate :
-            income.download(now_date) #new
-            """
-            down_tse_monthly_report(int(now_date.year),int(now_date.month))
-            down_otc_monthly_report(int(now_date.year),int(now_date.month))
-            gen_revenue_final_file(now_date)
-            """
-            now_date = now_date + relativedelta(months=1)
-
-         
-    elif sys.argv[1]=='good' :
-        if len(sys.argv)==3 :
-            #參數2:開始日期 
-            datatime=datetime.strptime(sys.argv[2],'%Y%m%d')
-            gen_revenue_good_list(datatime)
+            now_date = startdate 
+            while   now_date<=enddate :
+                director.download(now_date) #new
+                now_date = now_date + relativedelta(months=1)
         else :
-            print (lno(),'func -g date')   
-            
+              print (lno(),'func -d startdata enddate') 
+         
     elif sys.argv[1]=='gen' :
         if len(sys.argv)==3 :
             #參數2:開始日期 
@@ -627,21 +719,10 @@ if __name__ == '__main__':
             datatime=datetime.strptime(sys.argv[3],'%Y%m%d')
             #get_revenue_by_stockid_bydate(stock_id,datatime)
             #get_revenue_by_stockid(stock_id,datatime)
-            income1=income()
-            df=income1.get_by_date(datatime)
+            df=sql_data.get_by_date(datatime)
             print(lno(),df)
-    elif sys.argv[1]=='get1' :
-        if len(sys.argv)==3 :
-            datatime=datetime.strptime(sys.argv[2],'%Y%m%d')
-            income1=income()
-            df=income1.get_by_date(datatime)
-            print(lno(),df)        
-            
-            
-        else :
-            print (lno(),'func -g date')        
     elif sys.argv[1]=='sql' :
-        income=income()
+        
         startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
         try:
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
@@ -651,7 +732,7 @@ if __name__ == '__main__':
         while   now_date<=enddate :
             #down_tse_monthly_report(int(now_date.year),int(now_date.month))
             #down_otc_monthly_report(int(now_date.year),int(now_date.month))
-            income.download(now_date)
+            sql_data.download(now_date)
             #gen_revenue_final_file(now_date)
             now_date = now_date + relativedelta(months=1)
    

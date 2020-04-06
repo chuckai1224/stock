@@ -1030,7 +1030,61 @@ def to_html(df,filen):
     old_width = pd.get_option('display.max_colwidth')
     pd.set_option('display.max_colwidth', -1)
     df.to_html(filen,escape=False,index=False,sparsify=True,border=2,index_names=False)
-    pd.set_option('display.max_colwidth', old_width)   
+    pd.set_option('display.max_colwidth', old_width) 
+    
+def get_stock_sql_engine(stock_id):
+    check_dst_folder('sql/stock')    
+    engine = create_engine('sqlite:///sql/stock/{}.db'.format(stock_id), echo=False)
+    return engine
+
+def stock_df_to_sql(engine,table_name,df):
+    con = engine.connect()
+    df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,chunksize=10)      
+import director
+
+def get_director_df(stock_id,dw=1,debug=1):
+    df=director.get_stock_director_df_goodinfo(stock_id,download=dw)
+    return df
+import eps
+def get_stock_last_year_income(date,stock_id):
+    nowdate=date
+    get_data=False
+    df_s=pd.DataFrame()
+    cnt=0
+    while get_data==False:
+        year=str(int(nowdate.year)-1911)
+        season=4
+        file='data/eps/tse_%s-%s.html'%(year, season)
+        if os.path.exists(file):  
+            df_s = pd.read_html(file,encoding = 'utf8')
+            for df in df_s:
+                if '公司代號' in df.columns:
+                    df['公司代號']=df['公司代號'].astype(str)
+                    #print(lno(),df.dtypes)
+                    d=df.loc[df['公司代號'] == stock_id]
+                    if len(d)!=0:
+                        return d
+
+            
+            file='data/eps/otc_%s-%s.html'%(year, season)
+            if os.path.exists(file):  
+                df_s = pd.read_html(file,encoding = 'utf8')
+                for df in df_s:
+                    if '公司代號' in df.columns:
+                        df['公司代號']=df['公司代號'].astype(str)
+                        #print(lno(),df.dtypes)
+                        d=df.loc[df['公司代號'] == stock_id]
+                        if len(d)!=0:
+                            return d
+            
+        else:    
+            nowdate = nowdate - relativedelta(years=1)
+            cnt=cnt+1
+        if cnt>=3:
+            break
+    return pd.DataFrame()    
+
+      
 if __name__ == '__main__':
     if sys.argv[1]=='exc_sql' :
         print(lno(),'convert exchange(csv/data/tse/zzz) to sql database(data/xxx_exchange_data.db)')
