@@ -515,15 +515,16 @@ def down_stock_composite_income(stock_id,download=1,debug=1):
         r = requests.get(url)
         if not r.ok:
             print(lno(),"Can not get data at {}".format(url))
-            return 
+            return pd.DataFrame() 
         with open(filename, 'wb') as file:
             # A chunk of 128 bytes
             for chunk in r:
                 file.write(chunk)
         r.close()        
         time.sleep(5)
-        if os.path.getsize(filename)<4096:
-            os.remove(filename)    
+    if os.path.getsize(filename)<4096:
+        print(lno(),filename,"size:",os.path.getsize(filename));
+        os.remove(filename)    
     if not os.path.exists(filename): 
         return pd.DataFrame()
     try:    
@@ -551,6 +552,7 @@ def down_stock_composite_income(stock_id,download=1,debug=1):
             print(lno(),df)    
             return pd.DataFrame()
         print(lno(),d1)
+        return d1
         #engine=comm.get_stock_sql_engine(stock_id)
         #comm.stock_df_to_sql(engine,'composite_income_sheet(season)',d1)
     else:

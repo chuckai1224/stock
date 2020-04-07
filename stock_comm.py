@@ -1083,8 +1083,17 @@ def get_stock_last_year_income(date,stock_id):
         if cnt>=3:
             break
     return pd.DataFrame()    
-
-      
+import revenue
+def get_stock_RD_fee(stock_id,dw):
+    #reurn unit 百萬
+    df=revenue.down_stock_composite_income(stock_id,download=dw)
+    if len(df)>=4:
+        d=df.head(4)
+        d['研究發展費']=d['研究發展費'].astype(float64)
+        #print(lno(),d)
+        return d['研究發展費'].sum()
+    return np.NaN
+    
 if __name__ == '__main__':
     if sys.argv[1]=='exc_sql' :
         print(lno(),'convert exchange(csv/data/tse/zzz) to sql database(data/xxx_exchange_data.db)')

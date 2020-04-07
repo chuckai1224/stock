@@ -940,11 +940,13 @@ if __name__ == '__main__':
     #print (lno(),sys.path[0])
     #get_cur_twii_list(datetime.today())
     if len(sys.argv)==1:
-        #startdate=stock_comm.get_date()
+        startdate=stock_comm.get_date()
         #down_fut_op_big3(startdate)
-        enddate=datetime.strptime('20200323','%Y%m%d')
-        startdate=enddate
-        down_gen_day_datas(startdate,enddate)
+        enddate=startdate
+        down_fut_op_big3_top10_datas(startdate,enddate) 
+        #startdate=enddate
+        #down_gen_day_datas(startdate,enddate)
+        #down_fut_op_big3_top10_datas(startdate,enddate) 
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
         if len(sys.argv)==3 :

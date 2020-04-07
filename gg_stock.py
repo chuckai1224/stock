@@ -99,6 +99,7 @@ def get_director_change(r):
     df=comm.get_director_df(r.stock_id,dw=0)
     d=df.head(6).copy()
     d['全體董監持股增減']=d['全體董監持股增減'].astype('float64')
+    
     #print(lno(),d)
     #print(lno(),d['全體董監持股增減'].sum())
     return d['全體董監持股增減'].sum()
@@ -110,19 +111,22 @@ def get_stock_psr(r):
         ##百萬
         income= df.iloc[0]['營業收入']/1000
         market_value=r['市值']
+        #print(lno(),r)
+        ratio=float(r['累計年增率'])
+        income1=income*(100+ratio)/100
+        #print(lno(),income,income1)
         #print(lno(),df.iloc[0])
         #print(lno(),income,market_value)
-        return market_value/income
+        return market_value/income1
     return np.NaN 
+#市值/研究發展比
 def get_stock_prr(r):
-    df=comm.get_stock_last_year_income(r.date,r.stock_id)
-    if len(df)!=0:
-        ##百萬
-        income= df.iloc[0]['營業收入']/1000
+    RD_fee=comm.get_stock_RD_fee(r.stock_id,dw=0)
+    if RD_fee!=np.NaN:
         market_value=r['市值']
         #print(lno(),df.iloc[0])
         #print(lno(),income,market_value)
-        return market_value/income
+        return market_value/RD_fee
     return np.NaN 
           
 def gen_gg_buy_list(date,rev_date):
@@ -139,7 +143,8 @@ def gen_gg_buy_list(date,rev_date):
    
 
     d1['董監事持股增減']=d1.apply(get_director_change,axis=1)
-    d1['psr']=d1.apply(get_stock_psr,axis=1)
+    #d1['psr']=d1.apply(get_stock_psr,axis=1)
+    #d1['prr']=d1.apply(get_stock_prr,axis=1)
     print(lno(),d1)
     #d1.to_csv('./test.csv',encoding='utf-8', index=False)
     
