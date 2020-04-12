@@ -90,7 +90,21 @@ def down_tse_eps(year, reason,download=1):
             columns=df.columns
         """
         if  '公司代號' in df.columns:
-            df.rename(columns={'本期綜合損益總額（稅後）':'本期綜合損益總額'}, inplace=True)   
+            columns=df.columns   
+            df.rename(columns={'本期綜合損益總額（稅後）':'本期綜合損益總額'}, inplace=True)
+            df['ys']=int(year)*4+int(season)-1
+            if  '營業收入'in columns and '營業毛利（毛損）淨額' in columns:  
+                try:
+                    d=df[['公司代號','公司名稱','營業收入','營業毛利（毛損）淨額','營業利益（損失）','本期綜合損益總額','基本每股盈餘（元）','ys']].copy()     
+                except:
+                    print(lno(),df.iloc[0])
+                    raise    
+                for i in range(0,len(d)):
+                    #print(lno(),df.iloc[i]['公司代號'])
+                    #print(df[i:i+1])
+                    comm.stock_df_to_sql_append(d.iloc[i]['公司代號'],'mix_income',d[i:i+1])
+            else:
+                print(lno(),df.iloc[0])        
             df1=df[['公司代號','公司名稱','基本每股盈餘（元）','本期綜合損益總額']].copy()
             df1['毛利率']=0.0
             df1['營利率']=0.0
@@ -168,6 +182,19 @@ def down_otc_eps(year, reason,download=1):
         """
         if  '公司代號' in df.columns: 
             columns=df.columns   
+            df['ys']=int(year)*4+int(season)-1
+            if  '營業收入'in columns and '營業毛利（毛損）淨額' in columns:  
+                try:
+                    d=df[['公司代號','公司名稱','營業收入','營業毛利（毛損）淨額','營業利益（損失）','本期綜合損益總額','基本每股盈餘（元）','ys']].copy()     
+                except:
+                    print(lno(),df.iloc[0])
+                    raise    
+                for i in range(0,len(d)):
+                    #print(lno(),df.iloc[i]['公司代號'])
+                    #print(df[i:i+1])
+                    comm.stock_df_to_sql_append(d.iloc[i]['公司代號'],'mix_income',d[i:i+1])
+            else:
+                print(lno(),df.iloc[0])
             df1=df[['公司代號','公司名稱','基本每股盈餘（元）','本期綜合損益總額']].copy()
             df1['毛利率']=0.0
             df1['營利率']=0.0
@@ -182,7 +209,7 @@ def down_otc_eps(year, reason,download=1):
                     df1['純益率']=df['本期綜合損益總額'].astype(float)/df['營業收入'].astype(float)*100    
             df1=df1.round({'毛利率': 2, '營利率': 2,'純益率': 2})
             df_out=pd.concat([df_out,df1])
-            print(lno(),df)
+            #print(lno(),df)
             
     print(lno(),len(df_out))
     if len(df_out)>2:
@@ -830,8 +857,8 @@ if __name__ == '__main__':
         season=int(sys.argv[2])
        
         #down_financial(year,reason,'tse',type='綜合損益彙總表',download=1)
-        down_tse_eps(year,season,0)
-        down_otc_eps(year,season,0)
+        down_tse_eps(year,season,1)
+        down_otc_eps(year,season,1)
         #gen_eps(year,season)
         
     else:

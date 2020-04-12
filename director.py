@@ -587,8 +587,7 @@ def down_stock_director_goodinfo(stock_id,download=0,debug=1):
             d=d.replace('-',np.NaN)
             d=d.dropna(thresh=2)
             print(lno(),d)
-        engine=comm.get_stock_sql_engine(stock_id)
-        comm.stock_df_to_sql(engine,'director',d)       
+        comm.stock_df_to_sql(stock_id,'director',d)       
 
 def get_stock_director_df_goodinfo(stock_id,download=1,debug=1):
     dst_folder='data/director/goodinfo'

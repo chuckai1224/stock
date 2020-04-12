@@ -407,7 +407,11 @@ class income:
         print(lno(),len(df_out))  
         table_name=date.strftime('%Y%m')
         print(lno(),table_name)
-        df_out.to_sql(name=table_name, con=self.con, if_exists='replace', index=False,chunksize=10)  
+        
+        df_out.to_sql(name=table_name, con=self.con, if_exists='replace', index=False,chunksize=10) 
+        df_out['date']=datetime(year+1911,month,1)
+        for i in range(0,len(df_out)):
+            comm.stock_df_to_sql_append_querydate(df_out.iloc[i]['公司代號'],'revenue',df_out[i:i+1])
     def get_by_stockid_date(self,stock_id,date):
         table_name=date.strftime('%Y%m')
         cmd='SELECT * FROM "{}" WHERE "公司代號" == "{}" '.format(table_name,stock_id)
@@ -598,7 +602,7 @@ if __name__ == '__main__':
             enddate=startdate    
         now_date = startdate 
         while   now_date<=enddate :
-            income.download(now_date) #new
+            income.download(now_date,dw=1) #new
             """
             down_tse_monthly_report(int(now_date.year),int(now_date.month))
             down_otc_monthly_report(int(now_date.year),int(now_date.month))

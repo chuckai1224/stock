@@ -463,13 +463,18 @@ def get_dfs_bydate(startdate,enddate,debug=0):
         
     else :
         return pd.DataFrame(pd.np.empty(( 1, len(outcols))) * pd.np.nan, columns = outcols)
-
-def calc_fix_delta(enddate,BoS,price,df_top10,debug=0):
+##v=2 算外資
+def calc_fix_delta(enddate,BoS,price,df_top10,debug=0,v=1):
+    ##抓取周月期別
     week=df_top10.iloc[0]['到期月份(週別)'].replace(' ','')
     month=df_top10.iloc[1]['到期月份(週別)'].replace(' ','')
     if debug ==1:
         print(lno(),price,week,month) 
+    w_fix_delta=0
+    m_fix_delta=0
     list=op.get_Op_Data_df_list(enddate,0)
+    
+    ## 計算月
     try:            
         df1=list[1][['到期月份(週別)','買賣權','結算價','履約價']].copy()
     except:
@@ -510,6 +515,7 @@ def calc_fix_delta(enddate,BoS,price,df_top10,debug=0):
         print(lno(),"op price=",price)
         print(lno(),"m_fix_delta",m_fix_delta) 
     if '-' not in week:
+        ## 計算周
         ##  from price get op upper left
         df1=list[0][['到期月份(週別)','買賣權','結算價','履約價']].copy()
         df1=df1.replace('-',np.NaN)
@@ -544,9 +550,16 @@ def calc_fix_delta(enddate,BoS,price,df_top10,debug=0):
         if BoS=='買權':
             w_buy_call=str2int(df_top10.iloc[0]['買方前十大交易人合計(特定法人合計)部位數'].split(' ')[0])
             final_delta=(w_buy_call*w_fix_delta+m_buy_call*m_fix_delta)/(w_buy_call+m_buy_call)
+            if debug==1:
+                print(lno(),'w top10 buy call:',w_buy_call,w_buy_call*100/(w_buy_call+m_buy_call))
+                print(lno(),'m top10 buy call:',m_buy_call,m_buy_call*100/(w_buy_call+m_buy_call))
+                
         else :
             w_buy_put=str2int(df_top10.iloc[3]['買方前十大交易人合計(特定法人合計)部位數'].split(' ')[0])    
             final_delta=(w_buy_put*w_fix_delta+m_buy_put*m_fix_delta)/(w_buy_put+m_buy_put)
+            if debug==1:
+                print(lno(),'w top10 buy put:',w_buy_put,w_buy_put*100/(w_buy_put+m_buy_put))
+                print(lno(),'m top10 buy put:',m_buy_put,m_buy_put*100/(w_buy_put+m_buy_put))
         if debug==1:
             df_lower['delta']=lower_delta
             df_upper['delta']=upper_delta
@@ -557,8 +570,12 @@ def calc_fix_delta(enddate,BoS,price,df_top10,debug=0):
     else:
         final_delta=m_fix_delta 
         if debug==1:
-            print(lno(),"final_delta",final_delta)         
-    return final_delta
+            print(lno(),"final_delta",final_delta)    
+    if v==2:
+        ##外資 need w m fix delta
+        return w_fix_delta,m_fix_delta,final_delta
+    else:                 
+        return final_delta
 
 #計算 莊家 壓力 支撐
 def calc_pressure_support(enddate,BoS,price,df_top10,debug=0):
@@ -660,6 +677,9 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
             '投信買賣差額',
             '外資及陸資買賣差額',
             '外資自營商買賣差額',
+            'w call delta','w put delta',
+            'm call delta','m put delta',
+            '十大 周op約當大台','十大 月op約當大台'
             ]
     f_big3_cols=[]        
     s_big3_cols=[]
@@ -747,6 +767,31 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
             df_o.iloc[0]['十大 所有buy put 口數']=str2int(df.iloc[5]['買方前十大交易人合計(特定法人合計)部位數'].split(' ')[0])
             df_o.iloc[0]['十大 所有sell call 口數']=str2int(df.iloc[2]['賣方前十大交易人合計(特定法人合計)部位數'].split(' ')[0])
             df_o.iloc[0]['十大 所有sell put 口數']=str2int(df.iloc[5]['賣方前十大交易人合計(特定法人合計)部位數'].split(' ')[0])
+            """
+            try:
+                w_top10_buycall=str2int(df.iloc[0]['買方前十大交易人合計(特定法人合計)部位數'].split('(')[1].replace(')',''))
+            except:
+                w_top10_buycall=0
+            try:        
+                w_top10_buyput=str2int(df.iloc[3]['買方前十大交易人合計(特定法人合計)部位數'].split('(')[1].replace(')',''))
+            except:
+                w_top10_buyput=0    
+            m_top10_buycall=str2int(df.iloc[1]['買方前十大交易人合計(特定法人合計)部位數'].split('(')[1].replace(')',''))
+            m_top10_buyput=str2int(df.iloc[4]['買方前十大交易人合計(特定法人合計)部位數'].split('(')[1].replace(')',''))
+            """
+            try:
+                w_top10_buycall=str2int(df.iloc[0]['買方前十大交易人合計(特定法人合計)部位數'].split(' ')[0].replace(')',''))
+            except:
+                w_top10_buycall=0
+            try:        
+                w_top10_buyput=str2int(df.iloc[3]['買方前十大交易人合計(特定法人合計)部位數'].split(' ')[0].replace(')',''))
+            except:
+                w_top10_buyput=0    
+            m_top10_buycall=str2int(df.iloc[1]['買方前十大交易人合計(特定法人合計)部位數'].split(' ')[0].replace(')',''))
+            m_top10_buyput=str2int(df.iloc[4]['買方前十大交易人合計(特定法人合計)部位數'].split(' ')[0].replace(')',''))
+            if debug&0x4!=0:
+                print(lno(),w_top10_buycall,w_top10_buyput,m_top10_buycall,m_top10_buyput)
+            
         if debug&0x4!=0:
             print(lno(),"\r\n",df_o[top10_cols].iloc[0])
         list=['外資','自營商','投信']
@@ -768,7 +813,14 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
                 print(lno(),key,df[filter].iloc[0]['未平倉買方口數'])
             if df[filter].iloc[0]['未平倉買方口數']!=0:
                 price=str2int(df[filter].iloc[0]['未平倉買方契約金額'])*1000/50/str2int(df[filter].iloc[0]['未平倉買方口數'])
-                delta=calc_fix_delta(enddate,'買權',price,df_op_top10)
+                if key=='外資':
+                    print(lno(),'buy call cash:',df[filter].iloc[0]['未平倉買方契約金額'])
+                    print(lno(),'buy call 口數',df[filter].iloc[0]['未平倉買方口數'])
+                    print(lno(),'buy call avg price',price)
+                    w_call_delta,m_call_delta,delta=calc_fix_delta(enddate,'買權',price,df_op_top10,debug=1,v=2)
+                    
+                else: 
+                    delta=calc_fix_delta(enddate,'買權',price,df_op_top10)
                 op_call_fut=delta*df_o.iloc[0]['{} buy call num'.format(key)]/4
                 print(lno(),key,"op_call_fut",delta,df_o.iloc[0]['{} buy call num'.format(key)],op_call_fut) 
             else:    
@@ -779,7 +831,13 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
             df_o.iloc[0]['{} buy put cash'.format(key)]=str2int(df[filter].iloc[0]['未平倉買方契約金額'])   
             if df[filter].iloc[0]['未平倉買方口數']!=0:
                 price=str2int(df[filter].iloc[0]['未平倉買方契約金額'])*1000/50/str2int(df[filter].iloc[0]['未平倉買方口數'])
-                delta=calc_fix_delta(enddate,'賣權',price,df_op_top10)
+                if key=='外資':
+                    print(lno(),'buy put cash:',df[filter].iloc[0]['未平倉買方契約金額'])
+                    print(lno(),'buy put 口數',df[filter].iloc[0]['未平倉買方口數'])
+                    print(lno(),'buy put avg price',price)
+                    w_put_delta,m_put_delta,delta=calc_fix_delta(enddate,'賣權',price,df_op_top10,debug=1,v=2)
+                else:    
+                    delta=calc_fix_delta(enddate,'賣權',price,df_op_top10)
                 op_put_fut=delta*df_o.iloc[0]['{} buy put num'.format(key)]/4
                 print(lno(),key,"op_put_fut",delta,df_o.iloc[0]['{} buy put num'.format(key)],op_put_fut) 
             else:    
@@ -805,6 +863,13 @@ def down_fut_op_big3_top10_data_bydate(enddate,download=1,debug=0xff):
                 w_support,m_support=calc_pressure_support(enddate,'賣權',price,df_op_top10,debug=0)
                 df_o.iloc[0]['{} 周支撐'.format(key)]= w_support
                 df_o.iloc[0]['{} 月支撐'.format(key)]= m_support 
+       
+        df_o.iloc[0]['十大 周op約當大台']=(w_top10_buycall*w_call_delta+ w_top10_buyput*w_put_delta)/4
+        df_o.iloc[0]['十大 月op約當大台']=(m_top10_buycall*m_call_delta+ m_top10_buyput*m_put_delta)/4
+        df_o.iloc[0]['w call delta']=w_call_delta
+        df_o.iloc[0]['m call delta']=m_call_delta
+        df_o.iloc[0]['w put delta']=w_put_delta
+        df_o.iloc[0]['m put delta']=m_put_delta
         
         if debug&0x2!=0:
             print(lno(),"\r\n",df_o[f_big3_cols].round(2).iloc[0])
@@ -842,11 +907,25 @@ def gen_final_html():
     if os.path.exists(out_file): 
         df2 = pd.read_csv(out_file,encoding = 'utf-8',dtype={'日期': 'str'})
     df_o=pd.merge(df1,df2,how='left')  
+    """
+    df_o['十大 周op約當大台']=df_o['_十大 周op約當大台']
+    df_o['十大 月op約當大台']=df_o['_十大 月op約當大台']
+    df_o['w call delta']=df_o['_w call delta']
+    df_o['m call delta']=df_o['_m call delta']
+    df_o['w put delta']=df_o['_w put delta']
+    df_o['m put delta']=df_o['_m put delta']
+    df_o.drop('_十大 周op約當大台',axis=1,inplace=True)
+    df_o.drop('_十大 月op約當大台',axis=1,inplace=True)
+    df_o.drop('_w call delta',axis=1,inplace=True)
+    df_o.drop('_m call delta',axis=1,inplace=True)
+    df_o.drop('_w put delta',axis=1,inplace=True)
+    df_o.drop('_m put delta',axis=1,inplace=True)
+    """
     print(lno(),"teeee")
     #df_o.to_csv('final/test.csv',encoding='utf-8', index=False) 
     old_width = pd.get_option('display.max_colwidth')
     pd.set_option('display.max_colwidth', -1)
-        ##=IMPORThtml("https://raw.githubusercontent.com/chuckai1224/final/master/fut_day_report_fin.html","table",0)
+    ##=IMPORThtml("https://raw.githubusercontent.com/chuckai1224/final/master/fut_day_report_fin.html","table",1)
     df_o.to_html('final/fut_day_report_fin.html',escape=False,index=False,sparsify=True,border=2,index_names=False)
     df_o.to_csv('final/mix_report_fin.csv',encoding='utf-8', index=False)
     pd.set_option('display.max_colwidth', old_width)    

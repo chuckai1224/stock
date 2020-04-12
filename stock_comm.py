@@ -18,6 +18,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import scipy.signal as signal 
 from sqlalchemy import create_engine
+from sqlalchemy.types import NVARCHAR, Float, Integer,DateTime,Date
 import platform
 import stock_big3
 DEBUG=1
@@ -1037,9 +1038,58 @@ def get_stock_sql_engine(stock_id):
     engine = create_engine('sqlite:///sql/stock/{}.db'.format(stock_id), echo=False)
     return engine
 
-def stock_df_to_sql(engine,table_name,df):
+def stock_df_to_sql(stock_id,table_name,df):
+    engine=get_stock_sql_engine(stock_id)
     con = engine.connect()
-    df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,chunksize=10)      
+    df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,chunksize=10) 
+    
+def stock_df_to_sql_append(stock_id,table_name,df):
+    engine=get_stock_sql_engine(stock_id)
+    con = engine.connect()
+    if table_name in engine.table_names():
+        cmd='SELECT * FROM "{}" WHERE ys == "{}" '.format(table_name,df.iloc[0]['ys'])
+        df_query= pd.read_sql(cmd, con=con)
+        if len(df_query):
+            print(lno(),"repeat",stock_id,df.iloc[0]['ys']/4,df.iloc[0]['ys']%4)
+            return
+        else:
+            #print(lno(),df)
+            #print(lno(),df.columns)
+            df.to_sql(name=table_name,  con=con, if_exists='append',  index= False,chunksize=10)
+    else:    
+        df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,chunksize=10) 
+def stock_df_to_sql_append_querydate(stock_id,table_name,df):
+    engine=get_stock_sql_engine(stock_id)
+    con = engine.connect()
+    if table_name in engine.table_names():
+        #print(lno(),df.iloc[0])   
+        date=df.iloc[0]['date']
+        cmd='SELECT * FROM "{}" WHERE date >= "{}" and date < "{}" '.format(table_name,date-relativedelta(days=1),date+relativedelta(days=1))
+        df_query= pd.read_sql(cmd, con=con)
+        if len(df_query):
+            print(lno(),"repeat",stock_id,df.iloc[0]['date'])
+            return
+        else:
+            #print(lno(),df)
+            #print(lno(),df.columns)
+            df.to_sql(name=table_name,  con=con, if_exists='append', index= False,dtype={'date': Date()}, chunksize=10)
+    else:
+        #print(lno(),df.iloc[0])    
+        df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,dtype={'date': Date()},chunksize=10)        
+
+def get_sql_stock_df(stock_id,table_name):
+    engine=get_stock_sql_engine(stock_id)
+    con = engine.connect()
+    cmd='SELECT * FROM "{}" '.format(table_name)
+    d= pd.read_sql(cmd, con=con)
+    d.replace('-',np.NaN)
+    if table_name=='mix_income':
+        d['營業收入']=d['營業收入'].astype('float64')
+        d['營業毛利（毛損）淨額']= d['營業毛利（毛損）淨額'].astype('float64')
+    return d
+    
+    
+             
 import director
 
 def get_director_df(stock_id,dw=1,debug=1):
@@ -1082,18 +1132,119 @@ def get_stock_last_year_income(date,stock_id):
             cnt=cnt+1
         if cnt>=3:
             break
-    return pd.DataFrame()    
+    return pd.DataFrame()  
+
+def get_stock_pe_networth_yield_df(r):
+    dst_folder='data/down_pe_networth_yield'
+    print(lno(),r.market)
+    if 'tse' ==r.market:
+        file='%s/tse%s.csv'%(dst_folder,r.date.strftime('%Y%m%d'))
+    else:
+        file='%s/otc%s.csv'%(dst_folder,r.date.strftime('%Y%m%d'))
+    try:    
+        df = pd.read_csv(file,encoding = 'utf-8',dtype= {'stock_id':str})
+    except:
+        print(lno(),file,"ng file")
+        return pd.DataFrame()     
+    #print(lno(),r.stock_id)
+    #print(lno(),df.dtypes)
+    #print(lno(),df[df['stock_id']==r.stock_id])
+    return df[df['stock_id']==r.stock_id]
+    """
+    try:
+        df=get_sql_stock_df(r.stock_id,"pe_ratio")
+    except:
+        print(lno(),r)
+        raise    
+    return df
+    """
+def get_stock_revenue_df(r):
+    df=get_sql_stock_df(r.stock_id,"revenue")
+    d=df.sort_values(by='date',ascending=False).reset_index(drop=True)
+    return d
+    
+#抓取資料最新月的累計營收    
+def get_stock_cumulative_revenue(r):
+    df=get_sql_stock_df(r.stock_id,"revenue")
+    d=df.sort_values(by='date',ascending=False).reset_index(drop=True)
+    
+    print(lno(),d.head(1))
+    return d.head(1)
+def get_stock_tdcc_dist_df(r):
+    tdcc=get_tdcc_dist() 
+    df=tdcc.get_df(r.stock_id)
+    return df
+      
+def get_stock_season_df(r):
+    df=get_sql_stock_df(r.stock_id,"mix_income")
+    d=df.sort_values(by='ys',ascending=False).reset_index(drop=True)
+    #單位K
+    d.replace('-',np.NaN)
+    try:
+        d['單季營收']=d['營業收入']-d['營業收入'].shift(-1)
+        d['單季EPS']=d['基本每股盈餘（元）']-d['基本每股盈餘（元）'].shift(-1)
+        d['單季毛利淨額']=d['營業毛利（毛損）淨額']-d['營業毛利（毛損）淨額'].shift(-1)
+        d['單季營業利益淨額']=d['營業利益（損失）']-d['營業利益（損失）'].shift(-1)
+        d['單季綜合損益總額']=d['本期綜合損益總額']-d['本期綜合損益總額'].shift(-1)
+    except:
+        print(lno(),d)
+        print(lno(),d.iloc[0])
+        raise    
+    #d1=d.head(8).copy()
+    #d1=d
+    d1=pd.DataFrame()
+    d['year']=(d['ys']/4)+1911
+    d['year']=d['year'].astype('int')
+    d['season']=d['ys']%4 +1
+    for i in range(0,len(d)):
+        if d.iloc[i]['ys']%4==0:
+            d.loc[i,'單季營收']= d.iloc[i]['營業收入']
+            d.loc[i,'單季EPS']=d.iloc[i]['基本每股盈餘（元）']
+            d.loc[i,'單季毛利淨額']=d.iloc[i]['營業毛利（毛損）淨額']
+            d.loc[i,'單季營業利益淨額']=d.iloc[i]['營業利益（損失）']
+            d.loc[i,'單季綜合損益總額']=d.iloc[i]['本期綜合損益總額']
+    #print(lno(),d1.iloc[0])
+    #print(lno(),d1)
+    return d
+   
 import revenue
-def get_stock_RD_fee(stock_id,dw):
+def get_stock_RD_fee(stock_id,dw,debug=1):
     #reurn unit 百萬
     df=revenue.down_stock_composite_income(stock_id,download=dw)
     if len(df)>=4:
-        d=df.head(4)
-        d['研究發展費']=d['研究發展費'].astype(float64)
-        #print(lno(),d)
+        d=df.head(4).copy()
+        d['研究發展費']=d['研究發展費'].astype('float64')
+        if debug==1:
+            print(lno(),d)
         return d['研究發展費'].sum()
     return np.NaN
-    
+import tdcc_dist
+g_tdcc=None
+def get_tdcc_dist():
+    global g_tdcc
+    if g_tdcc==None:
+        g_tdcc=tdcc_dist.tdcc_dist()
+    return g_tdcc 
+
+def get_total_stock_num(stock_id,date):
+    tdcc=get_tdcc_dist() 
+    total_stock_nums=tdcc.get_total_stock_num(stock_id,date)
+    return total_stock_nums
+g_stk = None
+def get_stock_data():
+    global g_stk
+    if g_stk==None:
+        print(lno(),'111')
+        g_stk=stock_data()
+    return g_stk
+
+def get_stock_last_close(stock_id,date):
+    stk=get_stock_data()    
+    df=stk.get_df_by_startdate_enddate(stock_id,date-relativedelta(days=14),date+relativedelta(days=1))  
+    if len(df.index)==0:
+        return np.NaN
+    return df.iloc[-1]['close']
+
 if __name__ == '__main__':
     if sys.argv[1]=='exc_sql' :
         print(lno(),'convert exchange(csv/data/tse/zzz) to sql database(data/xxx_exchange_data.db)')
