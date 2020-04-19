@@ -711,7 +711,7 @@ def get_stock_tse_df(stock_id,df):
     #df1=df1.fillna(method='ffill') 
     #print (lno(),df1)
     return df1
-def get_stock_long_short_list(_list,date,debug=3,ver=1):     
+def get_stock_long_short_list(_list,date,debug=0,ver=1):     
     long1=0
     short1=0
     long2=0

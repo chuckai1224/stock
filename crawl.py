@@ -282,7 +282,13 @@ class Crawler():
         #print(lno(),res)
         columns = ['stock_id','stock_name','close','diff', 'open', 'high', 'low', 'av','vol','cash',\
          'Tnumber','b1','s1','total_stock','d1','d2','d3']
-        df=pd.DataFrame( res, columns=columns)
+        try:
+            df=pd.DataFrame( res, columns=columns)
+        except:    
+            columns = ['stock_id','stock_name','close','diff', 'open', 'high', 'low', 'av','vol','cash',\
+         'Tnumber','b1','dd1','s1','dd2','total_stock','d1','d2','d3']
+            df=pd.DataFrame( res, columns=columns)
+            
         #now_date=datetime.strptime('{0}{1:02d}{2:02d}'.format(date_tuple[0], date_tuple[1], date_tuple[2]),'%Y%m%d')
         #df['date']=np.datetime64(now_date)
         df['date']='{0}-{1:02d}-{2:02d}'.format(date_tuple[0], date_tuple[1], date_tuple[2])

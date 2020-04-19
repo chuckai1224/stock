@@ -150,6 +150,15 @@ def get_stock_pe_networth_yield(d):
         d.at[0,'股利年度']=df.iloc[0]['股利年度']
     else:
         d.at[0,'本益比']=np.NaN
+def get_stock_director(d):
+    df=comm.get_stock_director_df(d.iloc[0]) 
+    for i in range(0,6):
+        try:
+            d.at[0,'前{}月董監持股'.format(i)]=df.iloc[-1-i]['董監持股']
+        except:    
+            d.at[0,'前{}月董監持股'.format(i)]=np.NaN
+        
+    pass        
 def get_stock_tdcc_dist(d):
     cols=['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29']
     s_cols=['15','16','17','18','19','20','21','22','23','24','25']
@@ -168,7 +177,7 @@ def get_stock_tdcc_dist(d):
         d.at[0,'大戶近一月增加比']=(d.at[0,'前1周>1000張比例']-d.at[0,'前4周>1000張比例'])/d.at[0,'前4周>1000張比例']*100
         d.at[0,'大戶近一周增加比']=(d.at[0,'前1周>1000張比例']-d.at[0,'前2周>1000張比例'])/d.at[0,'前2周>1000張比例']*100
         print(lno(),d.iloc[0])
-        raise
+        #raise
     else:
         d.at[0,'本益比']=np.NaN
 def get_stock_revenue(d):
@@ -278,6 +287,7 @@ def gen_stock_info(r):
     d.at[0,'股數(萬張)']=comm.get_total_stock_num(stock_id,date)/10000000
     #1萬張=1千萬股 市值百萬 要x10    
     d.at[0,'市值(百萬)']=d.at[0,'收盤價']*d.at[0,'股數(萬張)']*10
+    get_stock_director(d)
     """
     抓取 前1周<400張比例 ,前2周<400張比例,前3周<400張比例,前4周<400張比例
          前1周>1000張比例 ,前2周>1000張比例,前3周>1000張比例,前4周>1000張比例

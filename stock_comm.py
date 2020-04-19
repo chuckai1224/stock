@@ -1058,6 +1058,22 @@ def stock_df_to_sql_append(stock_id,table_name,df):
             df.to_sql(name=table_name,  con=con, if_exists='append',  index= False,chunksize=10)
     else:    
         df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,chunksize=10) 
+def stock_read_sql_add_df(stock_id,table_name,df):
+
+    engine=get_stock_sql_engine(stock_id)
+    con = engine.connect()
+    if table_name in engine.table_names():
+        cmd='SELECT * FROM "{}"'.format(table_name)
+        df_query= pd.read_sql(cmd, con=con, parse_dates=['date'])
+        if df.columns.all()==df_query.columns.all():
+            df=df.append(df_query,ignore_index=True)
+            df.drop_duplicates(subset=['date'], keep='first', inplace=True)
+            df=df.sort_values(by=['date'], ascending=True)
+        print(lno(),df)    
+        #raise
+        df.to_sql(name=table_name,  con=con, if_exists='replace',  index= False,chunksize=10)
+    else:    
+        df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,chunksize=10)         
 def stock_df_to_sql_append_querydate(stock_id,table_name,df):
     engine=get_stock_sql_engine(stock_id)
     con = engine.connect()
@@ -1170,6 +1186,11 @@ def get_stock_cumulative_revenue(r):
     
     print(lno(),d.head(1))
     return d.head(1)
+def get_stock_director_df(r):
+    df=get_sql_stock_df(r.stock_id,"director")
+    print(lno(),df)
+    return df
+
 def get_stock_tdcc_dist_df(r):
     tdcc=get_tdcc_dist() 
     df=tdcc.get_df(r.stock_id)

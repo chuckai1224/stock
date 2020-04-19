@@ -1,3 +1,94 @@
+## psrs/psr 三年低  -1  (-2 << 2)
+
+if 0.2-x >2
+  y=2
+elif 0.2-x <-2  
+  y=-2
+else
+    y=(0.2-x)*2
+
+## 淨值比 <1.3
+(1.3 -x )
+if x>=3.3 
+    y=-2
+elif x>=1.3      
+    y=1.3-x
+else
+    y=(1.3-x)*2
+
+## psrs <0.75 (-4  ~ 4)
+if psrs>=3
+    y=-4
+else
+    y=(1.5-psrs)/0.375
+     
+
+## prr<15 
+if prr>=15
+    y=-2
+elif prr<=0
+    y=-2    
+else 
+    y=(15-prr)/7.5
+
+## 毛利率 >30 (-2 ~2)
+if x<10
+    y=-2
+elif x>=60    
+    y=2
+else
+    y=(x-30)/15    
+
+## 營利率年增 (-2 ~2)
+x=本季營利率-去年同期營利率
+if x/2.5<-2
+   y=-2
+elif x/2.5>2
+    y=2
+else
+    y=x/2.5    
+
+## 營收年增 20%(-2 ~2)
+x=最新月營收年成長率
+w=本年累計營收年成長率-去年營收年增率
+if (x*100-10)*0.25/10+w*0.25>2
+    y=2
+else
+    y=(x*100-10)*0.25/10+w*0.25   
+## 營收月增 80%(-2 ~2)
+if x>0.8
+    y=2
+elif x<-0.8
+    y=-2    
+else
+    y=  x*2.5  
+## peg
+今年eps預估(最新一季eps*2+前一季eps+前2季eps)
+(eps預估年成長率)a= (最新一季eps*2+前一季eps+前2季eps)/(去年同季eps*2+去年前一季eps+去年前2季eps) 
+if a<0
+    peg=1.34
+else
+    if 本益比=NA
+        if 今年eps預估<0
+            peg=1.34
+        else
+            peg=股價/今年eps預估/eps預估年成長率/100
+    else        
+        peg=本益比/(eps預估年成長率)/100
+if peg>1.34
+    y=-2
+elif peg <0.66
+    y=2
+else
+    y=(1-peg)*2/0.34        
+
+http://lovecoding.logdown.com/
+
+外資月 call delta=0.713386
+外資月 put delta =-0.921187
+十大 月 buy call 口數=66357	
+十大 月 buy put 口數=98918
+十大約當大台=外資月 call delta* 十大 月 buy call 口數 +外資月 put delta* 十大 月 buy put 口數 
 # stock
 ## 外資
 1. 期貨 

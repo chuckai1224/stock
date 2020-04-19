@@ -96,7 +96,7 @@ def down_pe_networth_yield(date,dw=1,debug=1):
 if __name__ == '__main__':
 
     if len(sys.argv)==1:
-        startdate=datetime.today().date()
+        now_date=datetime.today().date()
         
         down_pe_networth_yield(now_date) #new
         #down_tse_monthly_report(int(startdate.year),int(startdate.month)-1)
