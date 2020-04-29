@@ -1,3 +1,9 @@
+## 0420 
+1. get_psrs_div_psr3y_score    gg_stock.py
+   psrs/psr 三年低  -1  (-2 << 2)
+2. 
+
+## 0419 評分標準sop
 ## psrs/psr 三年低  -1  (-2 << 2)
 
 if 0.2-x >2

@@ -478,7 +478,7 @@ def get_stock_df_bydate_nums(stock_no,nums,date):
     #print  (lno(),df.tail(5))
     #print  (lno(),stock_no,date,lendf)  
     try :
-        outdf = pd.DataFrame(pd.np.empty(( lendf, len(outcols))) * pd.np.nan, columns = outcols)
+        outdf = pd.DataFrame(np.empty(( lendf, len(outcols))) * np.nan, columns = outcols)
     except: 
         print  (lno(),stock_no,date,lendf)      
     #tokline_type(df)
@@ -1196,9 +1196,11 @@ def get_stock_tdcc_dist_df(r):
     df=tdcc.get_df(r.stock_id)
     return df
       
-def get_stock_season_df(r):
+def get_stock_season_df(r,debug=0):
     df=get_sql_stock_df(r.stock_id,"mix_income")
     d=df.sort_values(by='ys',ascending=False).reset_index(drop=True)
+    if debug==1:
+        print(lno(),d)
     #單位K
     d.replace('-',np.NaN)
     try:
