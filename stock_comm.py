@@ -1092,16 +1092,27 @@ def stock_df_to_sql_append_querydate(stock_id,table_name,df):
     else:
         #print(lno(),df.iloc[0])    
         df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,dtype={'date': Date()},chunksize=10)        
-
+def tofloat64(x):
+    if type(x)==str and '-' in x:
+        return np.NaN
+    if type(x)==str and '--' in x:
+        return np.NaN
+    return float(x)
 def get_sql_stock_df(stock_id,table_name):
     engine=get_stock_sql_engine(stock_id)
     con = engine.connect()
-    cmd='SELECT * FROM "{}" '.format(table_name)
-    d= pd.read_sql(cmd, con=con)
+    try:
+        cmd='SELECT * FROM "{}" '.format(table_name)
+        d= pd.read_sql(cmd, con=con)
+    except:
+        print(lno(),stock_id,table_name,"NG")    
+        return pd.DataFrame()
     d.replace('-',np.NaN)
+    d.replace('--',np.NaN)
     if table_name=='mix_income':
-        d['營業收入']=d['營業收入'].astype('float64')
-        d['營業毛利（毛損）淨額']= d['營業毛利（毛損）淨額'].astype('float64')
+        #d['營業收入']=d['營業收入'].astype('float64')
+        d['營業收入']=d['營業收入'].apply(tofloat64)
+        d['營業毛利（毛損）淨額']= d['營業毛利（毛損）淨額'].apply(tofloat64)
     return d
     
     
@@ -1198,6 +1209,9 @@ def get_stock_tdcc_dist_df(r):
       
 def get_stock_season_df(r,debug=0):
     df=get_sql_stock_df(r.stock_id,"mix_income")
+    if len(df)==0:
+        print(lno(),r.stock_id,"no mix_income" )
+        return pd.DataFrame()
     d=df.sort_values(by='ys',ascending=False).reset_index(drop=True)
     if debug==1:
         print(lno(),d)

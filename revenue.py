@@ -231,7 +231,7 @@ def down_otc_monthly_report(year, month):
     print(lno(),len(df))
     
     return 
-def gen_revenue_good_list(enddate,ver=1,debug=0):
+def gen_revenue_good_list(enddate,ver=2,debug=0):
     ## TODO: add sql need test
     if ver==1:
         in1=income()
@@ -242,7 +242,32 @@ def gen_revenue_good_list(enddate,ver=1,debug=0):
         prev_month = enddate - relativedelta(months=1)
         df_p=in1.get_by_date(prev_month)
         p_b20_list=df_p[(df_p.loc[:,"去年同月增減(%)"] >= 20)]['公司代號'].tolist()
-        
+    elif ver==2:
+        in1=income()
+        df_s=in1.get_by_date(enddate)
+        df=df_s[(df_s.loc[:,"去年同月增減(%)"] >= 20)].copy().reset_index(drop=True)
+        if len(df.index)==0 :
+           return pd.DataFrame()     
+        print(lno(),df[['公司代號','公司名稱']])
+        prev_month = enddate - relativedelta(months=1)
+        df_p=in1.get_by_date(prev_month)
+        df_p=df_p[['公司代號','去年同月增減(%)']]
+        df_p=df_p.rename(columns={'去年同月增減(%)':'上月去年同月增減(%)'})
+        d1=pd.merge(df,df_p, how='left', on='公司代號')
+        def check(r):
+            if r['去年同月增減(%)']<20:
+                return 0
+            if r['去年同月增減(%)']>=r['上月去年同月增減(%)']:
+                return 1
+            return 0
+        d1['res']=d1.apply(check,axis=1)
+        df_o=d1[d1['res']==1].reset_index(drop=True)
+        df_o=df_o[['公司代號','公司名稱','去年同月增減(%)','前期比較增減(%)','上月去年同月增減(%)']].copy()
+        df_o.columns=['stock_id','stock_name','單月年增率','累計年增率','前月年增率']
+        return df_o
+        #print(lno(),df_o.iloc[0])
+        #print(lno(),df_o[['公司代號','公司名稱','去年同月增減(%)','前期比較增減(%)','上月去年同月增減(%)']])
+        #raise
     else:    
         revenue_csv='data/revenue/final/%d-%02d.csv'% (enddate.year-1911,enddate.month )
         print(lno(),revenue_csv)

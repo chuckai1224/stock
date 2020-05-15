@@ -36,8 +36,12 @@ def main():
         os.remove(outf)  
             
     data=pd.read_csv(outf)
-    #print(lno(),data)
+    
+   
     if len(data):
+        print(lno(),data.iloc[0])
+        data.columns=['資料日期', '證券代號', '持股分級', '人數', '股數', '占集保庫存數比例%']
+        data['資料日期']=data['資料日期'].astype('str');
         data.to_csv(outf,encoding='utf-8', index=False)
         savef='{}_{}'.format(outf,data.iloc[0]['資料日期'])
         print(lno(),savef)

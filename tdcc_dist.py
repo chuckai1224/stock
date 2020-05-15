@@ -1169,11 +1169,22 @@ class tdcc_dist():
         for stock_id in ll:
             if len(stock_id)!=4:
                 continue
+            #stock_id='9103'
             table_names = self.engine.table_names()
             if stock_id not in table_names:
                 print(lno(),stock_id,"no exist in sql table need to create")
+                filename='data/csv/dist/{}/{}_dist.csv'.format(stock_id,date.strftime('%Y%m%d'))
+                try :
+                    dfi=pd.read_csv(filename,encoding = 'utf-8')
+                except:
+                    print(lno(),stock_id,filename,"read fail")
+                    continue
+                dfi.columns=['序','持股分級','人數','股數','比例(%)']
+                df_fin.loc[date]=dfi['人數'].values.tolist()+dfi['股數'].values.tolist()+dfi['比例(%)'].values.tolist() 
+                #print(lno(),df_fin)
+                df_fin.to_sql(name=stock_id, con=self.conn, if_exists='replace',  index_label='date',dtype=self.dtypedict,chunksize=10)
                 continue
-            print(lno(),stock_id)
+            #print(lno(),stock_id)
             #ddate=datetime.strptime(date,'%Y%m%d')
             df_fin = pd.DataFrame(columns=self.columns, dtype=np.int64)
             #date_str='%d-%02d-%02d'%(ddate.year,ddate.month,ddate.day)
@@ -1238,7 +1249,7 @@ class tdcc_dist():
                 date_str='%s-%s-%s'%(date_s1[0:4],date_s1[4:6],date_s1[6:])
                 date1=datetime.strptime(date_str,'%Y-%m-%d')
                 #date=datetime(int(date_s1[0:4]),int(date_s1[4:6]),int(date_s1[6:]))
-                print(lno(),date)
+                print(lno(),stock_id,date1)
                 df_fin.loc[date1]=dfi['人數'].values.tolist()+dfi['股數'].values.tolist()+dfi['比例(%)'].values.tolist()
                 
             #print(lno(),len(df_fin))    

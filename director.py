@@ -384,7 +384,65 @@ def parse_stock_director_xq(startdate,enddate):
                 comm.stock_read_sql_add_df(stock_id,'director',d[i:i+1])
         else:
              print(lno(),_csv)   
-        nowdate = nowdate + relativedelta(months=1)         
+        nowdate = nowdate + relativedelta(months=1)   
+def get_xq_month_df(date):
+    _csv='data/director/xq/director{}.csv'.format(date.strftime('%Y%m'))
+    if os.path.exists(_csv):
+        print(lno(),_csv)
+        dfs = pd.read_csv(_csv,encoding = 'big5hkscs',skiprows=5,header=None)
+        try:
+            #dfs.columns=['序號','stock_id','stock_name','成交','漲幅%','總量','董監持股佔股本比例']
+            dfs.columns=['序號','stock_id','stock_name','成交','漲幅%','總量','d1','d2','董監持股','董監持股佔股本比例','符合條件數']
+        except:
+            print(lno(),dfs.iloc[0])
+            dfs.columns=['序號','stock_id','stock_name','成交','漲幅%','總量','董監持股','董監持股佔股本比例','符合條件數']
+            #raise
+        d=dfs[['stock_id','stock_name','董監持股','董監持股佔股本比例']].copy()
+        
+        #print(lno(),d.iloc[0])
+        return d
+    return pd.DataFrame()
+        
+        
+def gen_director_good_list(date,debug=0):
+    nowdate=date
+    cnt=0
+    while cnt<=3:
+        _csv='data/director/xq/director{}.csv'.format(nowdate.strftime('%Y%m'))
+        if  os.path.exists(_csv):
+            break
+        nowdate=nowdate - relativedelta(months=1)
+        cnt=cnt+1
+    d=get_xq_month_df(nowdate)
+    if len(d):
+        prev_month = nowdate - relativedelta(months=1)
+        d_prev=get_xq_month_df(prev_month)
+        if len(d_prev):
+            d_prev.columns=['stock_id','stock_name','前1月董監持股','前1月董監持股佔股本比例']
+            df_out=pd.merge(d,d_prev)
+            def calc_director_add(r):
+                try:
+                    add= float(r['董監持股'])-float(r['前1月董監持股'])
+                except:
+                    print(lno(),r) 
+                    raise   
+                return add        
+            df_out['董監持股增減']=df_out.apply(calc_director_add,axis=1)
+            df_good=df_out[df_out['董監持股增減']>100].copy().reset_index(drop=True)
+            def removetw(r):
+                return r['stock_id'].replace('.TW','')    
+            df_good['stock_id']=df_good.apply(removetw,axis=1)
+            
+            return df_good
+    else:
+        nowdate=nowdate - relativedelta(months=1)
+        cnt+=1
+    return pd.DataFrame()        
+           
+    
+        
+        
+                     
 if __name__ == '__main__':
 
     sql_data=director()

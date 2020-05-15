@@ -36,6 +36,7 @@ from sqlalchemy import create_engine
 #from pyecharts import Candlestick
 #import webbrowser
 import revenue
+import director
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from time import sleep
@@ -209,6 +210,8 @@ def get_stock_revenue(d):
         d.at[0,'本益比']=np.NaN
 def get_stock_season_composite_income_sheet(d):
     df=comm.get_stock_season_df(d.iloc[0],debug=1) 
+    if len(df)==0:
+        return 'N'
     ##get 第4季df 計算 前3年eps 營收收入
     d1=df[df['season']==4].reset_index(drop=True)
     years=len(d1)
@@ -301,11 +304,12 @@ def get_stock_season_composite_income_sheet(d):
         d.at[0,'近一季毛利率升降(年)']=df.iloc[0]['單季毛利淨額']/df.iloc[0]['單季營收']*100 -df.iloc[4]['單季毛利淨額']/df.iloc[4]['單季營收']*100                
         d.at[0,'近一季營利率升降(年)']=df.iloc[0]['單季營業利益淨額']/df.iloc[0]['單季營收']*100 -df.iloc[4]['單季營業利益淨額']/df.iloc[4]['單季營收']*100                
         d.at[0,'近一季淨利率升降(年)']=df.iloc[0]['單季綜合損益總額']/df.iloc[0]['單季營收']*100 -df.iloc[4]['單季綜合損益總額']/df.iloc[4]['單季營收']*100                
+        d.at[0,'近一季毛利率升降(季)']=df.iloc[0]['單季毛利淨額']/df.iloc[0]['單季營收']*100 -df.iloc[1]['單季毛利淨額']/df.iloc[1]['單季營收']*100                
+        d.at[0,'近一季營利率升降(季)']=df.iloc[0]['單季營業利益淨額']/df.iloc[0]['單季營收']*100 -df.iloc[1]['單季營業利益淨額']/df.iloc[1]['單季營收']*100                
+        d.at[0,'近一季淨利率升降(季)']=df.iloc[0]['單季綜合損益總額']/df.iloc[0]['單季營收']*100 -df.iloc[1]['單季綜合損益總額']/df.iloc[1]['單季營收']*100        
     except:
         pass
-    d.at[0,'近一季毛利率升降(季)']=df.iloc[0]['單季毛利淨額']/df.iloc[0]['單季營收']*100 -df.iloc[1]['單季毛利淨額']/df.iloc[1]['單季營收']*100                
-    d.at[0,'近一季營利率升降(季)']=df.iloc[0]['單季營業利益淨額']/df.iloc[0]['單季營收']*100 -df.iloc[1]['單季營業利益淨額']/df.iloc[1]['單季營收']*100                
-    d.at[0,'近一季淨利率升降(季)']=df.iloc[0]['單季綜合損益總額']/df.iloc[0]['單季營收']*100 -df.iloc[1]['單季綜合損益總額']/df.iloc[1]['單季營收']*100        
+   
     print(lno(),d1)
        
 
@@ -448,8 +452,9 @@ def gen_stock_info(r):
     cols=[ 'stock_id', 'stock_name','總分', '董監持股增減','大戶近一月增加比','大戶近一周增加比','散戶近一月增加比',
        'psrS','prr', '本益比', '股價淨值比', '殖利率(%)', 'market', '收盤價', '股數(萬張)', '市值(百萬)',
        '前0月董監持股', '前1月董監持股', '前2月董監持股', '前3月董監持股', '前4月董監持股', '前5月董監持股',
-       '前1周<400張比例', '前1周>1000張比例', '前2周<400張比例', '前2周>1000張比例', '前3周<400張比例',
-       '前3周>1000張比例', '前4周<400張比例', '前4周>1000張比例', '股利年度', '本年累計營收年增率', '最新單月營收年增率',
+       '前1周>1000張比例', '前2周>1000張比例','前3周>1000張比例', '前4周>1000張比例', 
+       '前1周<400張比例', '前2周<400張比例', '前3周<400張比例', '前4周<400張比例',
+       '股利年度', '本年累計營收年增率', '最新單月營收年增率',
        '最新單月營收月增率', '備註', '本年EPS', '前1年EPS', '前2年EPS', '本年營收(百萬)',
        '前1年營收(百萬)', '前2年營收(百萬)', '去年營收年增率', 'psr高-1', 'psr低-1',
        'psr高-2', 'psr低-2', 'psr高-3', 'psr低-3', 'psr三年最高', 'psr三年最低',
@@ -461,7 +466,10 @@ def gen_stock_info(r):
        '近一季毛利率升降(年)', '近一季營利率升降(年)', '近一季淨利率升降(年)', '近一季毛利率升降(季)',
        '近一季營利率升降(季)', '近一季淨利率升降(季)',  '分數:psrs/psr(3)-1', '分數:淨值比',
        '分數:psrs', '分數:prr', '分數:毛利率', '分數:營利率年增', '分數:營收年增20%', '分數:營收月增80%',
-       '分數:peg','date' ]
+       '分數:peg','date' ,
+       'week kline open','week kline high','week kline low', 'week kline close', 'week kline date',
+       'day kline open', 'day kline high', 'day kline low', 'day kline close', 'day kline date',
+       'week kline vol','day kline vol']
     stock_id=r.stock_id
     
     date=r.date
@@ -498,7 +506,9 @@ def gen_stock_info(r):
     ##抓取 	本年累計營收年增率	最新單月營收年增率	最新單月營收月增率	
     get_stock_revenue(d)
     ##三年eps 營業收入 psr high low psrS  8季三率 近一季三率成長 去年營收年增率 去年營收-百萬	今年營收預估-百萬
-    get_stock_season_composite_income_sheet(d)  
+    res=get_stock_season_composite_income_sheet(d)  
+    if res=='N':
+        return pd.DataFrame()
     #get prr
     d.at[0,'prr']=get_stock_prr(d.iloc[0])   
     print(lno(),d.columns)
@@ -517,52 +527,52 @@ def gen_stock_info(r):
     print(lno(),d.iloc[0][score_cols].values)
     d.at[0,'總分']= sum(d.iloc[0][score_cols].values)
     df1=comm.get_stock_df_bydate_nums(stock_id,300,date)
+    df1['vol']=df1['vol']/1000
     week_df=kline.resample(df1,'W',60).reset_index(drop=True).copy()
     def date2str(x):
         return datetime.strftime(x,'%y-%m-%d')
     week_df['date']=week_df['date'].apply(date2str)
-    print(lno(),week_df)
+    print(lno(),week_df.iloc[0])
     print(lno(),len(week_df))
-    #
+    d['week kline open']=d['week kline open'].astype(str)
+    d['week kline high']=d['week kline high'].astype(str)
+    d['week kline low']=d['week kline low'].astype(str)
+    d['week kline close']=d['week kline close'].astype(str)
+    d['week kline date']=d['week kline date'].astype(str)
+    d['week kline vol']=d['week kline vol'].astype(str)
     if len(week_df)>=60:
         d.at[0,'week kline open']=', '.join(map(str,week_df['open'].values.tolist()))
         d.at[0,'week kline high']=', '.join(map(str,week_df['high'].values.tolist()))
         d.at[0,'week kline low']=', '.join(map(str,week_df['low'].values.tolist()))
         d.at[0,'week kline close']=', '.join(map(str,week_df['close'].values.tolist()))
         d.at[0,'week kline date']=', '.join(week_df['date'].values.tolist())
+        d.at[0,'week kline vol']=', '.join(map(str,week_df['vol'].values.tolist()))
     else:    
         d.at[0,'week kline open']=''
         d.at[0,'week kline high']=''
         d.at[0,'week kline low']=''
         d.at[0,'week kline close']=''
         d.at[0,'week kline date']=''
+        d.at[0,'week kline vol']=' '
     day_df=df1.tail(60).reset_index(drop=True).copy()
     #print(lno(),day_df)
     def time642str(x):
         ts = pd.to_datetime(str(x)) 
         d = ts.strftime('%y-%m-%d')
         return d
+    d['day kline open']=d['day kline open'].astype(str)
+    d['day kline high']=d['day kline high'].astype(str)
+    d['day kline low']=d['day kline low'].astype(str)
+    d['day kline close']=d['day kline close'].astype(str)
+    d['day kline date']=d['day kline date'].astype(str)
+    d['day kline vol']=d['day kline vol'].astype(str)
     day_df['date']=day_df['date'].apply(time642str)
     d.at[0,'day kline open']=', '.join(map(str,day_df['open'].values.tolist()))
     d.at[0,'day kline high']=', '.join(map(str,day_df['high'].values.tolist()))
     d.at[0,'day kline low']=', '.join(map(str,day_df['low'].values.tolist()))
     d.at[0,'day kline close']=', '.join(map(str,day_df['close'].values.tolist()))
     d.at[0,'day kline date']=', '.join(day_df['date'].values.tolist())
-    """
-    if len(week_df)>=60:
-        for i in range(0,60):
-            d.at[0,'week kline date {}'.format(i)]=week_df.at[i,'date']
-        for i in range(0,60):
-            d.at[0,'week kline open {}'.format(i)]=week_df.at[i,'open']
-        for i in range(0,60):
-            d.at[0,'week kline high {}'.format(i)]=week_df.at[i,'high']        
-        for i in range(0,60):
-            d.at[0,'week kline low {}'.format(i)]=week_df.at[i,'low']        
-        for i in range(0,60):
-            d.at[0,'week kline close {}'.format(i)]=week_df.at[i,'close'] 
-        for i in range(0,60):
-            d.at[0,'week kline vol {}'.format(i)]=week_df.at[i,'vol']                   
-    """    
+    d.at[0,'day kline vol']=', '.join(map(str,day_df['vol'].values.tolist()))
     #print(lno(),d.columns)
     #raise
     return d
@@ -570,16 +580,28 @@ def gen_stock_info(r):
     
     
     
-def gen_gg_buy_list(date,rev_date):
+def gen_gg_buy_list(date,rev_date,method):
     
     #,'stock_name','market','收盤價','股數(萬張)','市值(百萬)']
-    d1=revenue.gen_revenue_good_list(rev_date)
+    if 'revenue'==method:
+        d1=revenue.gen_revenue_good_list(rev_date)
+    else:
+        d1=director.gen_director_good_list(rev_date) 
     d1['date']=date
     d1[['收盤價','股本','市值']]=d1.apply(get_market_value,axis=1,result_type="expand")
-    d1=d1[d1['市值']<=3000].reset_index(drop=True)
+    ##TODO 50億 check
+    d1=d1[d1['市值']<=5000].reset_index(drop=True)
     out=pd.DataFrame()
     for i in range(0,len(d1)):
     #for i in range(0,10):
+        if d1.iloc[i]['stock_id'].startswith( '25' ):
+            continue
+        if d1.iloc[i]['stock_id'].startswith( '28' ):
+            continue
+        if d1.iloc[i]['stock_id'].startswith( '55' ):
+            continue
+        if d1.iloc[i]['stock_id'].startswith( '58' ):
+            continue
         #d1.loc[i,'stock_id']='4571'
         d=gen_stock_info(d1.iloc[i])
         if len(d)==0:
@@ -589,6 +611,7 @@ def gen_gg_buy_list(date,rev_date):
         else:
             out=out.append(d,ignore_index=True)  
     out=out.sort_values(by=['總分'], ascending=False).copy()
+    """
     dummy=pd.DataFrame(np.empty(( 20, len(out.columns))) * np.nan, columns = out.columns)  
     out1=pd.DataFrame()
     for i in range(0,len(out)):
@@ -597,11 +620,9 @@ def gen_gg_buy_list(date,rev_date):
         else:
             out1=out1.append(out[i:i+1],ignore_index=True)  
         out1=out1.append(dummy,ignore_index=True)      
-        
-
     print(lno(),out1)
-
-    out1.to_csv('final/revenue_good_{}.csv'.format(date.strftime('%Y%m%d')),encoding='utf-8', index=False)
+    """
+    out.to_csv('final/{}_good_{}.csv'.format(method,date.strftime('%Y%m%d')),encoding='utf-8', index=False)
     
     
         
@@ -653,7 +674,8 @@ if __name__ == '__main__':
         except:
             rev_date=nowdate-relativedelta(months=1)
               
-        gen_gg_buy_list(nowdate,rev_date)                      
+        gen_gg_buy_list(nowdate,rev_date,"revenue")                      
+        gen_gg_buy_list(nowdate,rev_date,"director")                      
     else:
         pass    
     
