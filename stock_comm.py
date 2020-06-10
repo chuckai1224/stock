@@ -1245,8 +1245,18 @@ def get_stock_season_df(r,debug=0):
     return d
    
 import revenue
-def get_stock_RD_fee(stock_id,dw,debug=1):
+def get_stock_RD_fee(stock_id,dw,debug=1,ver=1):
     #reurn unit 百萬
+    if ver==1:
+        df=get_sql_stock_df(stock_id,"RD_fee")
+        print(lno(),df)
+        if len(df)>=4:
+            d=df.head(4).copy()
+            d['研發費用(百萬)']=d['研發費用(百萬)'].astype('float64')
+            if debug==1:
+                print(lno(),d)
+            return d['研發費用(百萬)'].sum()
+        return np.NaN
     df=revenue.down_stock_composite_income(stock_id,download=dw)
     if len(df)>=4:
         d=df.head(4).copy()
@@ -1281,7 +1291,20 @@ def get_stock_last_close(stock_id,date):
     if len(df.index)==0:
         return np.NaN
     return df.iloc[-1]['close']
-
+def get_tse_otc_stock_df_by_date(date):
+    date1=date
+    while True:
+        d1=exchange_data('tse').get_df_date_parse(date1)
+        if len(d1)==0:
+            date1=date1-relativedelta(days=1)
+            continue
+        else:
+            d2=exchange_data('otc').get_df_date_parse(date1)
+            d3=pd.concat([d1,d2])
+            
+            break
+    return d3
+    
 if __name__ == '__main__':
     if sys.argv[1]=='exc_sql' :
         print(lno(),'convert exchange(csv/data/tse/zzz) to sql database(data/xxx_exchange_data.db)')

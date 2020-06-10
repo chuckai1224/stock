@@ -469,7 +469,8 @@ def gen_stock_info(r):
        '分數:peg','date' ,
        'week kline open','week kline high','week kline low', 'week kline close', 'week kline date',
        'day kline open', 'day kline high', 'day kline low', 'day kline close', 'day kline date',
-       'week kline vol','day kline vol']
+       'week kline vol','day kline vol'
+       ]
     stock_id=r.stock_id
     
     date=r.date
@@ -573,18 +574,85 @@ def gen_stock_info(r):
     d.at[0,'day kline close']=', '.join(map(str,day_df['close'].values.tolist()))
     d.at[0,'day kline date']=', '.join(day_df['date'].values.tolist())
     d.at[0,'day kline vol']=', '.join(map(str,day_df['vol'].values.tolist()))
+    stock_3big_df=stock_big3.get_stock_3big(stock_id,date,10,d.at[0,'market'])
+    if len(stock_3big_df)!=0:
+        stock_3big_df['date']=stock_3big_df['日期'].apply(time642str)
+        d.at[0,'big3 date']=', '.join(stock_3big_df['date'].values.tolist())
+        d.at[0,'外資']=', '.join(map(str,stock_3big_df['外資'].values.tolist()))
+        d.at[0,'投信']=', '.join(map(str,stock_3big_df['投信'].values.tolist()))
+        d.at[0,'自營商']=', '.join(map(str,stock_3big_df['自營商'].values.tolist()))
+        print(lno(),d.iloc[0][['外資','投信']])
+    else:    
+        d.at[0,'big3 date']=''
+        d.at[0,'外資']=' '
+        d.at[0,'投信']=' '
+        d.at[0,'自營商']=' '
     #print(lno(),d.columns)
     #raise
     return d
+def check_skip_stock(r):
+    close=np.nan
+    if len(r.stock_id)!=4:
+        return np.NaN 
+    if r['stock_id'].startswith('00'):
+        return np.NaN 
+    if r['stock_id'].startswith( '25' ):
+        return np.NaN 
+    if r['stock_id'].startswith( '28' ):
+        return np.NaN 
+    if r['stock_id'].startswith( '55' ):
+        return np.NaN 
+    if r['stock_id'].startswith( '58' ):
+        return np.NaN 
+    cash=float(r.cash)
+    if cash<3000000:
+        return np.nan
+    return r.close  
+def red_K_ratio_calc(r):
+    try:
+        pre_close=r.close-r['diff']
+        if r.open >pre_close:
+            red_K_pwr= (r.close -pre_close)/pre_close
+        else :
+            red_K_pwr= (r.close -r.open)/pre_close    
+        return red_K_pwr 
+    except :
+        return np.nan
+def check_point_K(r):
+    stk=comm.get_stock_data()
+    df1=stk.get_df_by_enddate_num(r.stock_id,r.date,122)
+    #print(lno(),df1)
+    if len(df1)<90:
+        return 0
+    df1['red_K_ratio']=df1.apply(red_K_ratio_calc, axis=1)
+    top10=df1.sort_values(by='red_K_ratio',ascending=False).iloc[10]['red_K_ratio']
+    #print(lno(),df1,top10)
+    if df1.iloc[-1]['red_K_ratio']>=top10:
+        return 1
+    return   0
+def gen_pointK_list(date):
+    df=comm.get_tse_otc_stock_df_by_date(date)
+    df['close']=df.apply(check_skip_stock,axis=1)  
     
-    
-    
+    df = df[~df['close'].isnull()]
+   
+    df['point_K']=df.apply(check_point_K,axis=1)
+    d=df[(df['point_K']>=1)].copy()
+    return d    
+ 
+def gen_fund_ratio_list(date):
+    df=stock_big3.get_stock_big3_date_df(date) 
+    print(lno(),df)
     
 def gen_gg_buy_list(date,rev_date,method):
     
     #,'stock_name','market','收盤價','股數(萬張)','市值(百萬)']
     if 'revenue'==method:
         d1=revenue.gen_revenue_good_list(rev_date)
+    elif 'pointK'==method:
+        d1=gen_pointK_list(date)
+    elif 'fund'==method:
+        d1=gen_fund_ratio_list(date)    
     else:
         d1=director.gen_director_good_list(rev_date) 
     d1['date']=date
@@ -622,6 +690,11 @@ def gen_gg_buy_list(date,rev_date,method):
         out1=out1.append(dummy,ignore_index=True)      
     print(lno(),out1)
     """
+    old_width = pd.get_option('display.max_colwidth')
+    pd.set_option('display.max_colwidth', -1)
+    ##=IMPORThtml("https://raw.githubusercontent.com/chuckai1224/final/master/fut_day_report_fin.html","table",1)
+    out.to_html('final/{}_good.html'.format(method),escape=False,index=False,sparsify=True,border=2,index_names=False)
+    pd.set_option('display.max_colwidth', old_width)  
     out.to_csv('final/{}_good_{}.csv'.format(method,date.strftime('%Y%m%d')),encoding='utf-8', index=False)
     
     
@@ -659,23 +732,38 @@ if __name__ == '__main__':
     mpl.rcParams[u'font.sans-serif'] = ['simhei']
     
     if len(sys.argv)==1:
-        startdate=datetime(2019,12,13)  
-        #gen_buy_list_step1(startdate)  
-        gen_out_stock_df()
+        nowdate=comm.get_date() 
+        rev_date=nowdate-relativedelta(months=1)
+        gen_gg_buy_list(nowdate,rev_date,"pointK")                            
+        gen_gg_buy_list(nowdate,rev_date,"revenue")                      
+        gen_gg_buy_list(nowdate,rev_date,"director")  
                            
     elif sys.argv[1]=='gg' :
         ## TODO gg gen_analy_data
         try:    
             nowdate=datetime.strptime(sys.argv[2],'%Y%m%d')
         except:
-            nowdate=stock_comm.get_date()  
+            nowdate=comm.get_date()  
         try:    
             rev_date=datetime.strptime(sys.argv[3],'%Y%m%d')
         except:
             rev_date=nowdate-relativedelta(months=1)
-              
+        gen_gg_buy_list(nowdate,rev_date,"pointK")                            
         gen_gg_buy_list(nowdate,rev_date,"revenue")                      
-        gen_gg_buy_list(nowdate,rev_date,"director")                      
+        gen_gg_buy_list(nowdate,rev_date,"director")    
+        #gen_gg_buy_list(nowdate,rev_date,"fund")   
+    
+    elif sys.argv[1]=='fund' :
+        ## TODO gg gen_analy_data
+        try:    
+            nowdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            nowdate=comm.get_date()  
+        try:    
+            rev_date=datetime.strptime(sys.argv[3],'%Y%m%d')
+        except:
+            rev_date=nowdate-relativedelta(months=1)
+        gen_gg_buy_list(nowdate,rev_date,"fund")                       
     else:
         pass    
     

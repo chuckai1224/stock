@@ -599,7 +599,11 @@ def test_sql(date,download):
     #raise
     df.apply(check_data,axis=1)
     
-   
+def get_stock_big3_date_df(date):
+    sb3=stock_big3()
+    df=sb3.get_df_by_date(date) 
+    return df
+       
 if __name__ == '__main__':
     #print (lno(),sys.path[0])
     #get_cur_twii_list(datetime.today())

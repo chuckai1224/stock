@@ -530,7 +530,7 @@ def down_stock_composite_income(stock_id,download=1,debug=1):
     dst_folder='data/composite_income/html/'
     check_dst_folder(dst_folder)
     
-    filename='%s/%s.html'%(dst_folder,stock_id)
+    filename='%s%s.html'%(dst_folder,stock_id)
     # 偽瀏覽器
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
     # 下載該年月的網站，並用pandas轉換成 dataframe
