@@ -967,13 +967,13 @@ def check_twii_fin(seldata,debug=1,regen=0):
         df_fin.to_csv(fin_file,encoding='utf-8', index=False)
     return df_fin
         
-def generate_twii_fin(startdate,enddate,debug=0):
+def generate_twii_fin(startdate,enddate,debug=0,regen=0):
     
     nowdatetime = enddate
     day=0
     while   nowdatetime>=startdate :
         print (lno(),nowdatetime)
-        check_twii_fin(nowdatetime)   
+        check_twii_fin(nowdatetime,regen=regen)   
 
         day=day+1
         nowdatetime = enddate - relativedelta(days=day)    
@@ -999,7 +999,7 @@ if __name__ == '__main__':
         #url_get0='http://www.twse.com.tw/exchangeReport/FMTQIK?response=csv&date=%d%02d%02d'%(int(nowdatetime.year),int(nowdatetime.month),int(nowdatetime.day))
         #get_list_form_url_and_save(url_get0,dstpath)
         download_twii(nowdatetime,nowdatetime)
-        generate_twii_fin(nowdatetime,nowdatetime)
+        generate_twii_fin(nowdatetime,nowdatetime,regen=1)
         show_twii_v1(nowdatetime)
     elif sys.argv[1]=='-d' :
         startdate=datetime.strptime(sys.argv[2],'%Y%m%d')

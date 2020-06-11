@@ -642,7 +642,21 @@ def gen_pointK_list(date):
  
 def gen_fund_ratio_list(date):
     df=stock_big3.get_stock_big3_date_df(date) 
-    print(lno(),df)
+    def check_fund_skip_stock(r):
+        if len(r['證券代號'])!=4:
+            return 0 
+        if r['證券代號'].startswith('00'):
+            return 0
+        
+        if r['投信買賣超股數']>0:
+            return 1
+        return 0    
+    df['result']=df.apply(check_fund_skip_stock,axis=1)
+    df=df[df['result']==1].reset_index(drop=True)
+    d1=df[['證券代號','證券名稱','投信買賣超股數','date','market']].copy()
+    d1.columns=['stock_id','stock_name','投信買賣超股數','date','market']
+    #print(lno(),d1)
+    return d1
     
 def gen_gg_buy_list(date,rev_date,method):
     
@@ -658,7 +672,8 @@ def gen_gg_buy_list(date,rev_date,method):
     d1['date']=date
     d1[['收盤價','股本','市值']]=d1.apply(get_market_value,axis=1,result_type="expand")
     ##TODO 50億 check
-    d1=d1[d1['市值']<=5000].reset_index(drop=True)
+    if 'fund'!=method:
+        d1=d1[d1['市值']<=5000].reset_index(drop=True)
     out=pd.DataFrame()
     for i in range(0,len(d1)):
     #for i in range(0,10):
@@ -674,22 +689,18 @@ def gen_gg_buy_list(date,rev_date,method):
         d=gen_stock_info(d1.iloc[i])
         if len(d)==0:
             continue
+        if 'fund'==method: 
+            d.at[0,'投本比']=d1.iloc[i]['投信買賣超股數']/d1.iloc[i]['股本']*10000000
         if len(out)==0 :
             out=d.copy()
         else:
             out=out.append(d,ignore_index=True)  
-    out=out.sort_values(by=['總分'], ascending=False).copy()
-    """
-    dummy=pd.DataFrame(np.empty(( 20, len(out.columns))) * np.nan, columns = out.columns)  
-    out1=pd.DataFrame()
-    for i in range(0,len(out)):
-        if len(out1)==0 :
-            out1=out[i:i+1].copy()
-        else:
-            out1=out1.append(out[i:i+1],ignore_index=True)  
-        out1=out1.append(dummy,ignore_index=True)      
-    print(lno(),out1)
-    """
+    if 'fund'!=method:        
+        out=out.sort_values(by=['總分'], ascending=False).copy()
+    else:
+        out=out.sort_values(by=['投本比'], ascending=False).copy()    
+        c = out.pop('投本比')             
+        out.insert(4,'投本比',c)  
     old_width = pd.get_option('display.max_colwidth')
     pd.set_option('display.max_colwidth', -1)
     ##=IMPORThtml("https://raw.githubusercontent.com/chuckai1224/final/master/fut_day_report_fin.html","table",1)

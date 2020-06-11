@@ -1260,11 +1260,65 @@ class tdcc_dist():
             df_fin.to_sql(stock_id, self.engine, if_exists='replace', index_label='date',dtype=self.dtypedict,chunksize=10)
             #raise
             
+    def csv2sql_stock(self,stock_id):    
+        
+        check=0
+        if len(stock_id)!=4:
+            return
+        print(lno(),stock_id)
+        """
+        if stock_id=='6706' or stock_id=='6698' or stock_id=='6690':
+            check=1
+        if check==0:
+            continue
+        """
+        check=0
+        table_names = self.engine.table_names()
+        #if stock_id in table_names:
+        #    continue
+        df_fin = pd.DataFrame(columns=self.columns, dtype=np.int64)
+        
+        FOLDER='data/csv/dist/{}'.format(stock_id)
+        if not os.path.isdir(FOLDER):
+            return
+        file_names = os.listdir(FOLDER)
+        for file_name in file_names:
+            if not file_name.endswith('.csv'):
+                continue
+            #print(file_name,len(file_name))
+            #df=pd.read_csv('{}/{}'.format(FOLDER, file_name),encoding = 'utf-8',dtype=dtypes)
+            dfi=pd.read_csv('{}/{}'.format(FOLDER, file_name),encoding = 'utf-8')
+            #print(lno(),dfi)
+            if len(dfi)==0:
+                continue
 
+            dfi.columns=['序','持股分級','人數','股數','比例(%)'] 
+            #print(lno(),dfi['人數'].values.tolist()+dfi['股數'].values.tolist()+dfi['比例(%)'].values.tolist())
+            
+            #_list=self.tdcc_dftolist(dfi)
+            #dfo=pd.DataFrame([_list],columns=self.columns)
+            date_s1=file_name.replace('_dist.csv','')
+            date_str='%s-%s-%s'%(date_s1[0:4],date_s1[4:6],date_s1[6:])
+            date1=datetime.strptime(date_str,'%Y-%m-%d')
+            #date=datetime(int(date_s1[0:4]),int(date_s1[4:6]),int(date_s1[6:]))
+            print(lno(),stock_id,date1)
+            df_fin.loc[date1]=dfi['人數'].values.tolist()+dfi['股數'].values.tolist()+dfi['比例(%)'].values.tolist()
+            
+        #print(lno(),len(df_fin))    
+        if len(df_fin)==0:
+            return
+        df_fin.sort_index( ascending=True,inplace = True)
+        #print(lno(),df_fin.index)
+        df_fin.to_sql(stock_id, self.engine, if_exists='replace', index_label='date',dtype=self.dtypedict,chunksize=10)
+ 
 def tdcc_sql(date):
     tdcc=tdcc_dist()
     tdcc.csv2sql_all(date)
     #tdcc.csv2sql_bydate(date)
+def stock_id_tdcc_sql(stock_id):
+    tdcc=tdcc_dist()
+    tdcc.csv2sql_stock(stock_id)
+        
 def tdcc_sql_t0(date):
     tdcc=tdcc_dist()
     df=tdcc.get_df('6192')
@@ -1589,6 +1643,9 @@ if __name__ == '__main__':
     elif sys.argv[1]=="sql_t0" :
         dataday=datetime.strptime(sys.argv[2],'%Y%m%d')
         tdcc_sql_t0(dataday)
+    elif sys.argv[1]=='stock':
+        stock_id=sys.argv[2]
+        stock_id_tdcc_sql(stock_id)    
     elif sys.argv[1]=="old" :
         stock_id=sys.argv[2]
         requests_get_dist(stock_id)
