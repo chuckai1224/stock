@@ -804,6 +804,25 @@ class exchange_data:
             return df
         except:
             return pd.DataFrame()    
+    def get_last_df_bydate(self,selday):   
+        #print(lno(),self.stock_id) 
+        
+        table_names = self.engine.table_names() # 取得資料庫內全部Tables的名稱
+        #print(lno(),table_names)  
+        nowdate=selday
+        while True:
+            table_name=(nowdate.strftime('%Y%m%d'))
+            if table_name in table_names:
+                break
+            nowdate=nowdate-relativedelta(days=1)
+                
+        try:
+            df = pd.read_sql('select * from "{}"'.format(selday.strftime('%Y%m%d')), con=self.con, parse_dates=['date'])
+            #df=df.replace('-',np.NaN)
+            #print(lno(),self.df)
+            return df
+        except:
+            return pd.DataFrame()      
     def close(self):
         self.con.close()
 def exchange2sql(startdate,enddate):

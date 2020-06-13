@@ -690,7 +690,9 @@ def gen_gg_buy_list(date,rev_date,method):
         if len(d)==0:
             continue
         if 'fund'==method: 
-            d.at[0,'投本比']=d1.iloc[i]['投信買賣超股數']/d1.iloc[i]['股本']*10000000
+            d.at[0,'投本比']=d1.iloc[i]['投信買賣超股數']/(d1.iloc[i]['股本']*100000)
+            print(lno(),d1.iloc[i])
+            print(lno(),d.iloc[0])
         if len(out)==0 :
             out=d.copy()
         else:
@@ -762,7 +764,7 @@ if __name__ == '__main__':
         gen_gg_buy_list(nowdate,rev_date,"pointK")                            
         gen_gg_buy_list(nowdate,rev_date,"revenue")                      
         gen_gg_buy_list(nowdate,rev_date,"director")    
-        #gen_gg_buy_list(nowdate,rev_date,"fund")   
+        gen_gg_buy_list(nowdate,rev_date,"fund")   
     
     elif sys.argv[1]=='fund' :
         ## TODO gg gen_analy_data

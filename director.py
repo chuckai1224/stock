@@ -125,7 +125,7 @@ def get_director():
         g_director=director()
     return g_director 
 def down_stock_director(stock_id,market,date,download=1,debug=1):
-    dst_folder='data/director/html/%s'%(stock_id)
+    dst_folder='data/director/mops/%s'%(stock_id)
     check_dst_folder(dst_folder)
     year=int(date.year)
     month=int(date.month)
@@ -136,55 +136,22 @@ def down_stock_director(stock_id,market,date,download=1,debug=1):
         print(lno(),stock_id,year,month)
     str_ym='%d%02d'%(year,month)
     filename='%s/down_stock_director.%d%02d'%(dst_folder,year,month)
-    # 偽瀏覽器
-    
-    headers = {'User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'}
-    # 下載該年月的網站，並用pandas轉換成 dataframe
-    """
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
-    query_params = {
-        'encodeURIComponent':'1',
-        'step':'1',
-        'firstin':'1',
-        'off':'1',
-        'keyword4':'',
-        'code1':'',
-        'TYPEK2':'',
-        'checkbtn':'',
-        'queryName':'co_id',
-        'inpuType':'co_id',
-        'TYPEK':'all',
-        'isnew':'false',
-        'co_id':stock_id,
-        'year':year,
-        'month':month,
-    }
-    url='https://mops.twse.com.tw/mops/web/ajax_stapap1'
-    """
+    header='user-agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
     url='https://mops.twse.com.tw/mops/web/ajax_stapap1?TYPEK=%s&firstin=true&year=%d&month=%02d&off=1&co_id=%s&step=0'%(market,year,month,stock_id)
     
     
-    if os.path.exists(filename):
-        return 
-    if download==1 :
-        print(lno(),url)
-        try:
-            #r = requests.post(url, data=query_params,timeout=(3.05, 27))
-            r = requests.get(url, timeout=(3.05, 27))
-        except:
-            print(lno(),"ng")
-            r.close() 
-            return    
-        if not r.ok:
-            print(lno(),"Can not get data at {}".format(url))
-            r.close() 
-            return 
-        with open(filename, 'wb') as file:
-            # A chunk of 128 bytes
-            for chunk in r:
-                file.write(chunk)
-        r.close()        
-        time.sleep(5)        
+    if not os.path.exists(filename):
+        cmd='curl -H "{}" "{}" -o {}'.format(header,url,filename)
+        print(lno(),cmd)
+        if download==1:
+            os.system(cmd)
+            try:
+                if os.path.getsize(filename)<2048:
+                    os.remove(filename)  
+                time.sleep(10)        
+            except:
+                print(lno(),stock_id,date,'not exist')
+                return pd.DataFrame()    
                 
     if not os.path.exists(filename): 
         return pd.DataFrame()
@@ -208,8 +175,35 @@ def down_stock_director(stock_id,market,date,download=1,debug=1):
         df1=pd.DataFrame([records],columns=columns)
         df1['date']=datetime(date.year,date.month,1)
         print(lno(),df1)
-        _director=get_director()
-        _director.df_to_sql(stock_id,df1,datetime(date.year,date.month,1))
+        out_file='data/director/final/{}.csv'.format(stock_id)
+        check_dst_folder('data/director/final')
+        if os.path.exists(out_file): 
+            print(lno(),out_file)
+            df_s = pd.read_csv(out_file,encoding = 'utf-8',dtype={'date': 'str'})
+            df_s.dropna(axis=1,how='all',inplace=True)
+            df_s.dropna(inplace=True)
+            df_s['date']=[comm.date_sub2time64(x) for x in df_s['date'] ]    
+            df_s=df_s.append(df1,ignore_index=True)
+            df_s.drop_duplicates(subset=['date'],keep='last',inplace=True)
+            df_s=df_s.sort_values(by=['date'], ascending=False)
+            df_s.to_csv(out_file,encoding='utf-8', index=False)
+        else :
+            df1.to_csv(out_file,encoding='utf-8', index=False)
+        out_file='data/director/final/{}-{}.csv'.format(year,month)
+        if os.path.exists(out_file): 
+            print(lno(),out_file)
+            df_s = pd.read_csv(out_file,encoding = 'utf-8',dtype={'date': 'str'})
+            df_s.dropna(axis=1,how='all',inplace=True)
+            df_s.dropna(inplace=True)
+            df_s['date']=[comm.date_sub2time64(x) for x in df_s['date'] ]    
+            df_s=df_s.append(df1,ignore_index=True)
+            df_s.drop_duplicates(subset=['date'],keep='last',inplace=True)
+            df_s=df_s.sort_values(by=['date'], ascending=False)
+            df_s.to_csv(out_file,encoding='utf-8', index=False)
+        else :
+            df1.to_csv(out_file,encoding='utf-8', index=False)    
+        #_director=get_director()
+        #_director.df_to_sql(stock_id,df1,datetime(date.year,date.month,1))
         #print(lno(),dfs[4]['1'])
     else:    
         print(lno(),dfs)                
@@ -342,9 +336,9 @@ def download_all_stock_director_goodinfo():
 def download_all_stock_director(startdate,enddate):
     nowdate=startdate
     date=datetime(2020,4,1)
-    d1=comm.exchange_data('tse').get_df_date_parse(date)
+    d1=comm.exchange_data('tse').get_last_df_bydate(date)
     d1['market']='sii'
-    d2=comm.exchange_data('otc').get_df_date_parse(date)
+    d2=comm.exchange_data('otc').get_last_df_bydate(date)
     d2['market']='otc'
     d=pd.concat([d1,d2])
     stock_list=d['stock_id'].tolist()
@@ -466,7 +460,14 @@ if __name__ == '__main__':
         except:
             enddate=startdate
         parse_stock_director_xq(startdate,enddate)
-            
+    elif sys.argv[1]=='mops' :
+        ##公開資訊觀測站
+        startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        try:
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+        except:
+            enddate=startdate
+        download_all_stock_director(startdate,enddate)        
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
         if len(sys.argv)==4 :
