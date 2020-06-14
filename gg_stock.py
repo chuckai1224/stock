@@ -160,7 +160,17 @@ def get_stock_pe_networth_yield(d):
         d.at[0,'股利年度']=np.NaN
         return 'N'
     return 'Y'    
-def get_stock_director(d):
+def get_stock_director(d,ver=1):
+    if ver==1:
+        df=director.get_mops_stock_director_df(d.iloc[0]) 
+        for i in range(0,6):
+            try:
+                d.at[0,'前{}月董監持股'.format(i)]=df.iloc[i]['全體董監持股合計']/1000 #股數轉張數
+            except:    
+                d.at[0,'前{}月董監持股'.format(i)]=np.NaN
+        d.at[0,'董監持股增減']= d.at[0,'前0月董監持股']- d.at[0,'前1月董監持股']         
+        return
+    
     try:
         df=comm.get_stock_director_df(d.iloc[0]) 
     except:
@@ -174,7 +184,7 @@ def get_stock_director(d):
             d.at[0,'前{}月董監持股'.format(i)]=np.NaN
     d.at[0,'董監持股增減']= d.at[0,'前0月董監持股']- d.at[0,'前5月董監持股']         
 
-def get_stock_tdcc_dist(d):
+def get_stock_tdcc_dist(d,debug=0):
     cols=['15','16','17','18','19','20','21','22','23','24','25','26','27','28','29']
     s_cols=['15','16','17','18','19','20','21','22','23','24','25']
     b_cols=['29']
@@ -191,7 +201,8 @@ def get_stock_tdcc_dist(d):
         d.at[0,'散戶近一月增加比']=(d.at[0,'前1周<400張比例']-d.at[0,'前4周<400張比例'])/d.at[0,'前4周<400張比例']*100
         d.at[0,'大戶近一月增加比']=(d.at[0,'前1周>1000張比例']-d.at[0,'前4周>1000張比例'])/d.at[0,'前4周>1000張比例']*100
         d.at[0,'大戶近一周增加比']=(d.at[0,'前1周>1000張比例']-d.at[0,'前2周>1000張比例'])/d.at[0,'前2周>1000張比例']*100
-        print(lno(),d.iloc[0])
+        if debug==1:
+            print(lno(),d.iloc[0])
         #raise
     else:
         d.at[0,'本益比']=np.NaN
@@ -669,6 +680,7 @@ def gen_gg_buy_list(date,rev_date,method):
         d1=gen_fund_ratio_list(date)    
     else:
         d1=director.gen_director_good_list(rev_date) 
+    #print(lno(),d1)
     d1['date']=date
     d1[['收盤價','股本','市值']]=d1.apply(get_market_value,axis=1,result_type="expand")
     ##TODO 50億 check
@@ -750,7 +762,7 @@ if __name__ == '__main__':
         gen_gg_buy_list(nowdate,rev_date,"pointK")                            
         gen_gg_buy_list(nowdate,rev_date,"revenue")                      
         gen_gg_buy_list(nowdate,rev_date,"director")  
-                           
+        gen_gg_buy_list(nowdate,rev_date,"fund")                   
     elif sys.argv[1]=='gg' :
         ## TODO gg gen_analy_data
         try:    
@@ -765,6 +777,17 @@ if __name__ == '__main__':
         gen_gg_buy_list(nowdate,rev_date,"revenue")                      
         gen_gg_buy_list(nowdate,rev_date,"director")    
         gen_gg_buy_list(nowdate,rev_date,"fund")   
+    elif sys.argv[1]=='director' :
+        ## TODO gg gen_analy_data
+        try:    
+            nowdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            nowdate=comm.get_date()  
+        try:    
+            rev_date=datetime.strptime(sys.argv[3],'%Y%m%d')
+        except:
+            rev_date=nowdate-relativedelta(months=1)
+        gen_gg_buy_list(nowdate,rev_date,"director")    
     
     elif sys.argv[1]=='fund' :
         ## TODO gg gen_analy_data

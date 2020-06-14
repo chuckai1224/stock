@@ -124,7 +124,15 @@ def get_director():
         print(lno())
         g_director=director()
     return g_director 
-def down_stock_director(stock_id,market,date,download=1,debug=1):
+def check_no_public(filename):
+    with open(filename ,'r', encoding='utf-8') as f:
+        if u'公開發行公司不繼續公開發行' in f.read():
+            return True
+    
+    return False
+        
+    
+def down_stock_director(stock_id,stock_name,market,date,download=1,debug=1):
     dst_folder='data/director/mops/%s'%(stock_id)
     check_dst_folder(dst_folder)
     year=int(date.year)
@@ -141,20 +149,31 @@ def down_stock_director(stock_id,market,date,download=1,debug=1):
     
     
     if not os.path.exists(filename):
-        cmd='curl -H "{}" "{}" -o {}'.format(header,url,filename)
+        cmd='curl -H "{}" "{}" -o {} --speed-time 10 --speed-limit 1'.format(header,url,filename)
         print(lno(),cmd)
         if download==1:
             os.system(cmd)
+            if not os.path.exists(filename):
+                return pd.DataFrame()
+             
+            """
             try:
                 if os.path.getsize(filename)<2048:
+                    print(lno(),filename)
+                    raise
                     os.remove(filename)  
-                time.sleep(10)        
+                time.sleep(5)        
             except:
                 print(lno(),stock_id,date,'not exist')
                 return pd.DataFrame()    
-                
+            """    
     if not os.path.exists(filename): 
         return pd.DataFrame()
+    if os.path.getsize(filename)<2048:
+        if check_no_public(filename)==True:
+            return pd.DataFrame()
+        else:
+            os.remove(filename) 
     try:    
         dfs = pd.read_html(filename,encoding = 'utf8')
     except:
@@ -173,13 +192,16 @@ def down_stock_director(stock_id,market,date,download=1,debug=1):
         columns=df[0].tolist()
         records=df[1].tolist()
         df1=pd.DataFrame([records],columns=columns)
+        df1['stock_id']=str(stock_id)
+        df1['stock_name']=str(stock_name)
+        
         df1['date']=datetime(date.year,date.month,1)
         print(lno(),df1)
         out_file='data/director/final/{}.csv'.format(stock_id)
         check_dst_folder('data/director/final')
         if os.path.exists(out_file): 
             print(lno(),out_file)
-            df_s = pd.read_csv(out_file,encoding = 'utf-8',dtype={'date': 'str'})
+            df_s = pd.read_csv(out_file,encoding = 'utf-8',dtype={'date': 'str','stock_id': 'str'})
             df_s.dropna(axis=1,how='all',inplace=True)
             df_s.dropna(inplace=True)
             df_s['date']=[comm.date_sub2time64(x) for x in df_s['date'] ]    
@@ -192,13 +214,12 @@ def down_stock_director(stock_id,market,date,download=1,debug=1):
         out_file='data/director/final/{}-{}.csv'.format(year,month)
         if os.path.exists(out_file): 
             print(lno(),out_file)
-            df_s = pd.read_csv(out_file,encoding = 'utf-8',dtype={'date': 'str'})
+            df_s = pd.read_csv(out_file,encoding = 'utf-8',dtype={'date': 'str','stock_id': 'str'})
             df_s.dropna(axis=1,how='all',inplace=True)
             df_s.dropna(inplace=True)
-            df_s['date']=[comm.date_sub2time64(x) for x in df_s['date'] ]    
+            df_s['date']=[comm.date_sub2time64(x) for x in df_s['date'] ] 
             df_s=df_s.append(df1,ignore_index=True)
-            df_s.drop_duplicates(subset=['date'],keep='last',inplace=True)
-            df_s=df_s.sort_values(by=['date'], ascending=False)
+            df_s.drop_duplicates(subset=['stock_id'],keep='last',inplace=True)
             df_s.to_csv(out_file,encoding='utf-8', index=False)
         else :
             df1.to_csv(out_file,encoding='utf-8', index=False)    
@@ -209,6 +230,8 @@ def down_stock_director(stock_id,market,date,download=1,debug=1):
         print(lno(),dfs)                
         print(lno(),len(dfs))
         print(lno(),str_ym,dfs[2].iloc[0][0])
+        print(lno(),filename)
+        raise
         os.remove(filename)
         
  
@@ -335,23 +358,26 @@ def download_all_stock_director_goodinfo():
 
 def download_all_stock_director(startdate,enddate):
     nowdate=startdate
-    date=datetime(2020,4,1)
-    d1=comm.exchange_data('tse').get_last_df_bydate(date)
-    d1['market']='sii'
-    d2=comm.exchange_data('otc').get_last_df_bydate(date)
-    d2['market']='otc'
-    d=pd.concat([d1,d2])
-    stock_list=d['stock_id'].tolist()
+    
     while   nowdate<=enddate :
-        
+        date=datetime(nowdate.year,nowdate.month,1)+relativedelta(months=1,days=-1)
+        d1=comm.exchange_data('tse').get_last_df_bydate(date)
+        print(lno(),d1)
+        d1['market']='sii'
+        d2=comm.exchange_data('otc').get_last_df_bydate(date)
+        print(lno(),d2)
+        d2['market']='otc'
+        d=pd.concat([d1,d2])
+        stock_list=d['stock_id'].tolist()
         for i in range(0,len(d)) :
             stock_id=d.iloc[i]['stock_id']
+            stock_name=d.iloc[i]['stock_name']
             market=d.iloc[i]['market']
             if len(stock_id)!=4:
                 continue
             if stock_id.startswith('00'):
                 continue
-            down_stock_director(stock_id,market,nowdate)
+            down_stock_director(stock_id,stock_name,market,nowdate)
         nowdate = nowdate + relativedelta(months=1) 
 def parse_stock_director_xq(startdate,enddate):
     nowdate=startdate
@@ -379,6 +405,26 @@ def parse_stock_director_xq(startdate,enddate):
         else:
              print(lno(),_csv)   
         nowdate = nowdate + relativedelta(months=1)   
+def get_mops_month_df(date):
+    _csv='data/director/final/{}-{}.csv'.format(date.year-1911,date.month)
+    if os.path.exists(_csv):
+        print(lno(),_csv)
+        dfs = pd.read_csv(_csv,encoding = 'utf-8',dtype= {'stock_id':str})
+        d=dfs[['stock_id','stock_name','全體董監持股合計']].copy()
+        
+        #print(lno(),d.iloc[0])
+        return d
+    return pd.DataFrame()
+def get_mops_stock_director_df(r):
+    _csv='data/director/final/{}.csv'.format(r['stock_id'])
+    if os.path.exists(_csv):
+        print(lno(),_csv)
+        dfs = pd.read_csv(_csv,encoding = 'utf-8',dtype= {'stock_id':str})
+        d=dfs[['date','stock_id','stock_name','全體董監持股合計']].copy()
+        #print(lno(),d.iloc[0])
+        return d
+    return pd.DataFrame()
+        
 def get_xq_month_df(date):
     _csv='data/director/xq/director{}.csv'.format(date.strftime('%Y%m'))
     if os.path.exists(_csv):
@@ -398,9 +444,35 @@ def get_xq_month_df(date):
     return pd.DataFrame()
         
         
-def gen_director_good_list(date,debug=0):
+def gen_director_good_list(date,debug=0,ver=1):
     nowdate=date
     cnt=0
+    if ver==1:
+        while cnt<=3:
+            _csv='data/director/final/{}-{}.csv'.format(nowdate.year-1911,nowdate.month)
+            if  os.path.exists(_csv):
+                break
+            nowdate=nowdate - relativedelta(months=1)
+            cnt=cnt+1
+        d=get_mops_month_df(nowdate)
+        if len(d):
+            prev_month = nowdate - relativedelta(months=1)
+            d_prev=get_mops_month_df(prev_month)
+            if len(d_prev):
+                d_prev.columns=['stock_id','stock_name','前1月全體董監持股合計']
+                df_out=pd.merge(d,d_prev)
+                def calc_director_add(r):
+                    try:
+                        add= float(r['全體董監持股合計'])-float(r['前1月全體董監持股合計'])
+                    except:
+                        print(lno(),r) 
+                        raise   
+                    return add        
+                df_out['董監持股增減']=df_out.apply(calc_director_add,axis=1)
+                df_good=df_out[df_out['董監持股增減']>100*1000].copy().reset_index(drop=True)
+                return df_good
+        return pd.DataFrame() 
+        raise      
     while cnt<=3:
         _csv='data/director/xq/director{}.csv'.format(nowdate.strftime('%Y%m'))
         if  os.path.exists(_csv):
@@ -453,6 +525,7 @@ if __name__ == '__main__':
         enddate=datetime(2020,3,1)
         parse_stock_director_xq(startdate,enddate)
         #"""
+            
     elif sys.argv[1]=='xq' :
         startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
         try:
@@ -467,7 +540,12 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
         except:
             enddate=startdate
-        download_all_stock_director(startdate,enddate)        
+        download_all_stock_director(startdate,enddate)    
+    elif sys.argv[1]=='mopsday' :
+        prevmoth=datetime.today().date()-relativedelta(months=1)
+        startdate=datetime(prevmoth.year,prevmoth.month,1)
+        enddate=startdate
+        download_all_stock_director(startdate,enddate)         
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
         if len(sys.argv)==4 :

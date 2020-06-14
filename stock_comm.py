@@ -808,7 +808,7 @@ class exchange_data:
         #print(lno(),self.stock_id) 
         
         table_names = self.engine.table_names() # 取得資料庫內全部Tables的名稱
-        #print(lno(),table_names)  
+        print(lno(),table_names)  
         nowdate=selday
         while True:
             table_name=(nowdate.strftime('%Y%m%d'))
@@ -817,7 +817,7 @@ class exchange_data:
             nowdate=nowdate-relativedelta(days=1)
                 
         try:
-            df = pd.read_sql('select * from "{}"'.format(selday.strftime('%Y%m%d')), con=self.con, parse_dates=['date'])
+            df = pd.read_sql('select * from "{}"'.format(table_name), con=self.con, parse_dates=['date'])
             #df=df.replace('-',np.NaN)
             #print(lno(),self.df)
             return df
