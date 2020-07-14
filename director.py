@@ -358,7 +358,6 @@ def download_all_stock_director_goodinfo():
 
 def download_all_stock_director(startdate,enddate):
     nowdate=startdate
-    
     while   nowdate<=enddate :
         date=datetime(nowdate.year,nowdate.month,1)+relativedelta(months=1,days=-1)
         d1=comm.exchange_data('tse').get_last_df_bydate(date)
@@ -370,6 +369,7 @@ def download_all_stock_director(startdate,enddate):
         d=pd.concat([d1,d2])
         stock_list=d['stock_id'].tolist()
         for i in range(0,len(d)) :
+            
             stock_id=d.iloc[i]['stock_id']
             stock_name=d.iloc[i]['stock_name']
             market=d.iloc[i]['market']
@@ -379,6 +379,33 @@ def download_all_stock_director(startdate,enddate):
                 continue
             down_stock_director(stock_id,stock_name,market,nowdate)
         nowdate = nowdate + relativedelta(months=1) 
+        
+def download_new_stock_director(startdate,enddate,dw_stock_id):
+    date=datetime.today().date()
+    d1=comm.exchange_data('tse').get_last_df_bydate(date)
+    print(lno(),d1)
+    d1['market']='sii'
+    d2=comm.exchange_data('otc').get_last_df_bydate(date)
+    print(lno(),d2)
+    d2['market']='otc'
+    d=pd.concat([d1,d2])
+    stock_list=d['stock_id'].tolist()
+    
+    for i in range(0,len(d)) :
+        stock_id=d.iloc[i]['stock_id']
+        if dw_stock_id!=stock_id:
+            continue
+        stock_name=d.iloc[i]['stock_name']
+        market=d.iloc[i]['market']
+        if len(stock_id)!=4:
+            continue
+        if stock_id.startswith('00'):
+            continue
+        nowdate=startdate
+        while   nowdate<=enddate :
+            down_stock_director(stock_id,stock_name,market,nowdate)
+            nowdate = nowdate + relativedelta(months=1) 
+                
 def parse_stock_director_xq(startdate,enddate):
     nowdate=startdate
     while   nowdate<=enddate :
@@ -540,7 +567,17 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
         except:
             enddate=startdate
-        download_all_stock_director(startdate,enddate)    
+        download_all_stock_director(startdate,enddate)  
+    elif sys.argv[1]=='stock' :
+        ##公開資訊觀測站
+        dw_stock=sys.argv[2]
+        startdate=datetime.strptime(sys.argv[3],'%Y%m%d')
+        try:
+            enddate=datetime.strptime(sys.argv[4],'%Y%m%d')
+        except:
+            enddate=startdate
+        download_new_stock_director(startdate,enddate,dw_stock) 
+              
     elif sys.argv[1]=='mopsday' :
         prevmoth=datetime.today().date()-relativedelta(months=1)
         startdate=datetime(prevmoth.year,prevmoth.month,1)

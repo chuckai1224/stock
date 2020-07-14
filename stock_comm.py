@@ -1112,12 +1112,12 @@ def stock_df_to_sql_append_querydate(stock_id,table_name,df):
         #print(lno(),df.iloc[0])    
         df.to_sql(name=table_name, con=con, if_exists='replace',  index= False,dtype={'date': Date()},chunksize=10)        
 def tofloat64(x):
-    if type(x)==str and '-' in x:
+    if type(x)==str and '-' == x:
         return np.NaN
-    if type(x)==str and '--' in x:
+    if type(x)==str and '--' == x:
         return np.NaN
     return float(x)
-def get_sql_stock_df(stock_id,table_name):
+def get_sql_stock_df(stock_id,table_name,debug=0):
     engine=get_stock_sql_engine(stock_id)
     con = engine.connect()
     try:
@@ -1130,8 +1130,12 @@ def get_sql_stock_df(stock_id,table_name):
     d.replace('--',np.NaN)
     if table_name=='mix_income':
         #d['營業收入']=d['營業收入'].astype('float64')
+        if debug==1:
+            print(lno(),d)
         d['營業收入']=d['營業收入'].apply(tofloat64)
         d['營業毛利（毛損）淨額']= d['營業毛利（毛損）淨額'].apply(tofloat64)
+        if debug==1:
+            print(lno(),d)
     return d
     
     
@@ -1208,6 +1212,32 @@ def get_stock_revenue_df(r):
     df=get_sql_stock_df(r.stock_id,"revenue")
     d=df.sort_values(by='date',ascending=False).reset_index(drop=True)
     return d
+def get_stock_industry_status_df(r):
+    dst_folder='xq_data'
+    #print(lno(),r.market)
+    if 'tse' ==r.market:
+        file='%s/tse.csv'%(dst_folder)
+    else:
+        file='%s/otc.csv'%(dst_folder)
+    
+    try:    
+        df = pd.read_csv(file,encoding = 'big5hkscs',dtype= {'代碼':str})
+        if len(df.columns)==6:
+            df.columns=['stock_id', 'stock_name', '產業地位', '產業', '細產業', '市值']
+            df=df[['stock_id', 'stock_name', '產業地位', '產業', '細產業']]
+            #print(lno(),df.iloc[0])
+        elif len(df.columns)==5:    
+            df.columns=['stock_id', 'stock_name', '產業地位', '產業', '細產業']
+        else:    
+            print(lno(),df.columns,len(df.columns))    
+            raise
+    except:
+        print(lno(),file,"ng file")
+        return pd.DataFrame()     
+    #print(lno(),type(r.stock_id))
+    #print(lno(),df.dtypes)
+    #print(lno(),df[df['stock_id']=='1101'])
+    return df[df['stock_id']==r.stock_id]
     
 #抓取資料最新月的累計營收    
 def get_stock_cumulative_revenue(r):
@@ -1231,6 +1261,7 @@ def get_stock_season_df(r,debug=0):
     if len(df)==0:
         print(lno(),r.stock_id,"no mix_income" )
         return pd.DataFrame()
+    #print(lno(),df)
     d=df.sort_values(by='ys',ascending=False).reset_index(drop=True)
     if debug==1:
         print(lno(),d)
@@ -1259,8 +1290,8 @@ def get_stock_season_df(r,debug=0):
             d.loc[i,'單季毛利淨額']=d.iloc[i]['營業毛利（毛損）淨額']
             d.loc[i,'單季營業利益淨額']=d.iloc[i]['營業利益（損失）']
             d.loc[i,'單季綜合損益總額']=d.iloc[i]['本期綜合損益總額']
-    #print(lno(),d1.iloc[0])
-    #print(lno(),d1)
+    #print(lno(),d.iloc[0])
+    #print(lno(),d)
     return d
    
 import revenue

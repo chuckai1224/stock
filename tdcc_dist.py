@@ -221,7 +221,9 @@ def update_tdcc_date():
             if i==b'20200122':
                 i=b'20200120'
             if i==b'20200215':
-                i=b'20200214'        
+                i=b'20200214' 
+            if i==b'20200620':
+                i=b'20200619'            
             SCA_DATE.append(i.decode("utf-8") )
     print (lno(),SCA_DATE)
     if len(SCA_DATE) != 0 :
@@ -261,7 +263,9 @@ def update_tdcc_data():
                 if i[0]=='20200122':
                     i[0]='20200120' 
                 if i[0]=='20200215':
-                    i[0]='20200214'        
+                    i[0]='20200214' 
+                if i[0]=='20200620':
+                    i[0]='20200619'           
                 ymd=i[0]    
                 if i[2]=='1' :
                     key=i[1]
