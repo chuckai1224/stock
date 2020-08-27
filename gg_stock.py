@@ -626,7 +626,8 @@ def gen_stock_info(r,debug=0):
     d.at[0,'總分']= sum(d.iloc[0][score_cols].values)
     df1=comm.get_stock_df_bydate_nums(stock_id,300,date)
     df1['vol']=df1['vol']/1000
-    week_df=kline.resample(df1,'W',60).reset_index(drop=True).copy()
+    #week_df=kline.resample(df1,'W',60).reset_index(drop=True).copy()
+    week_df=kline.resample(df1,'W-FRI',60).reset_index(drop=True).copy()
     def date2str(x):
         return datetime.strftime(x,'%y-%m-%d')
     week_df['date']=week_df['date'].apply(date2str)
@@ -763,11 +764,13 @@ def gen_gg_buy_list(date,rev_date,method):
     else:
         d1=director.gen_director_good_list(rev_date) 
     #print(lno(),d1)
+    if len(d1)==0:
+        return
     d1['date']=date
     d1[['收盤價','股本','市值']]=d1.apply(get_market_value,axis=1,result_type="expand")
     ##TODO 50億 check
     if 'fund'!=method:
-        d1=d1[d1['市值']<=8000].reset_index(drop=True)
+        d1=d1[d1['市值']<=15000].reset_index(drop=True)
     out=pd.DataFrame()
     for i in range(0,len(d1)):
     #for i in range(0,10):
@@ -798,7 +801,7 @@ def gen_gg_buy_list(date,rev_date,method):
     else:
         out=out.sort_values(by=['投本比'], ascending=False).copy()    
         c = out.pop('投本比')             
-        out.insert(4,'投本比',c)  
+        out.insert(16,'投本比',c)  
     old_width = pd.get_option('display.max_colwidth')
     pd.set_option('display.max_colwidth', -1)
     ##=IMPORThtml("https://raw.githubusercontent.com/chuckai1224/final/master/fut_day_report_fin.html","table",1)
