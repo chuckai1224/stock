@@ -200,7 +200,13 @@ if __name__ == '__main__':
         startdate=datetime.today().date()
         gen_stock_bs_oneday(startdate)
   
-             
+    elif sys.argv[1]=='-d' :
+        try:
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            print (lno(),'func -d startdata ')
+            raise
+        gen_stock_bs_oneday(startdate)   
     elif sys.argv[1]=='-g' :
         if len(sys.argv)==3 :
             #參數2:開始日期 

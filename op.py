@@ -1611,7 +1611,13 @@ if __name__ == '__main__':
         #op_plot(startdate)
         op_plot_v1(startdate)
 
-        
+    elif sys.argv[1]=='-d1' :    
+        startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        down_op_pc(startdate,startdate)
+        down_optData(startdate,startdate)
+        down_opDelta(startdate) 
+        fut.down_data(startdate)
+        op_plot_v1(startdate)
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
         if len(sys.argv)==4 :

@@ -774,6 +774,13 @@ if __name__ == '__main__':
         down_otc_monthly_report(int(startdate.year),int(startdate.month)-1)
         #down_op_pc(startdate,startdate)
         #down_optData(startdate,startdate)
+    elif sys.argv[1]=='now' :
+        nowdate=datetime.today().date()
+        year =int(nowdate.year)-1911
+        season =int((nowdate.month+2)/3)-1
+        print(lno(),year,season)
+        down_tse_eps(year,season,1)
+        down_otc_eps(year,season,1)    
     elif sys.argv[1]=='-d' :
         #print (lno(),len(sys.argv))
         if len(sys.argv)==4 :

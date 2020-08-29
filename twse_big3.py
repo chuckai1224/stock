@@ -63,6 +63,8 @@ def down_twse_3big(startdate,enddate):
     day=0
     while   nowdatetime>=startdate :
         #print (lno(),nowdatetime)
+        if nowdatetime!=enddate:
+            time.sleep(3)
         dstpath='%s/%d%02d%02d.csv'%(dst_folder,int(nowdatetime.year), int(nowdatetime.month),int(nowdatetime.day))
         url='http://www.twse.com.tw/fund/BFI82U?response=csv&dayDate=%d%02d%02d&type=day'%(int(nowdatetime.year),int(nowdatetime.month),int(nowdatetime.day))
         download_file(url,dstpath)
@@ -75,7 +77,7 @@ def down_twse_3big(startdate,enddate):
             #產生 日期,
         """    
             
-        time.sleep(3)
+       
         day=day+1
         nowdatetime = enddate - relativedelta(days=day)
 def generate_twse_3big(startdate,enddate):
@@ -351,7 +353,7 @@ def download_big8():
         #print(lno(),len(df),df['八大行庫買賣超金額'].values.tolist())
 
         dstpath='%s/big8_data.csv'%(dst_folder)
-        
+        print(lno(),"outfile:",dstpath)
         if os.path.exists(dstpath):   
             df_s = pd.read_csv(dstpath,encoding = 'utf8',dtype={'日期': 'str','八大行庫買賣超金額': 'str','台指期': 'str'})
             df_s.dropna(axis=1,how='all',inplace=True)
@@ -390,6 +392,7 @@ def get_big8_df():
         print(lno(), df_s)    
         #print(lno(),df_s[(df_s['date'] == date_str)].values.tolist())
         return df_s.round({'八大行庫': 1})
+    return pd.DataFrame()    
         
 class twse_big3:
     def __init__(self):
@@ -550,6 +553,7 @@ if __name__ == '__main__':
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             down_twse_3big(startdate,enddate)
             generate_twse_3big(startdate,enddate) 
+            download_big8()
 
         elif len(sys.argv)==3 :
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')

@@ -202,9 +202,9 @@ def get_stock_tdcc_dist(d,debug=0):
     
     #     大戶近一周增加比,大戶近一月增加比,散戶近一月增加比
     #df.iloc[-1][cols].values.sum()
-    df=comm.get_stock_tdcc_dist_df(d.iloc[0]).tail(8).reset_index(drop=True) 
+    df=get_stock_tdcc_dist_df(d.iloc[0]).tail(8).reset_index(drop=True) 
     #print(lno(),df)
-    
+
     date_list=[]
     s_ratio_list=[]
     b_ratio_list=[]
@@ -271,10 +271,12 @@ def get_stock_revenue(d):
         d.at[0,'本益比']=np.NaN
 def get_stock_season_composite_income_sheet(d,debug=0):
     df=comm.get_stock_season_df(d.iloc[0],debug=0) 
+    
     if len(df)==0:
         return 'N'
     ##get 第4季df 計算 前3年eps 營收收入
     d1=df[df['season']==4].reset_index(drop=True)
+    
     years=len(d1)
     if years>3:
         years=3
@@ -289,16 +291,19 @@ def get_stock_season_composite_income_sheet(d,debug=0):
         else:
             d.at[0,'前{}年營收(百萬)'.format(i)]=float(d1.iloc[i]['營業收入']/1000 ) 
     ##計算3年psr high low and 計算psrS
-    rev_S=(1+float(d.at[0,'本年累計營收年增率'])/100)*float(d1.iloc[0]['營業收入']/1000)
-    d.at[0,'psrS']=d.at[0,'市值(百萬)']/rev_S
+    
     try:
+        rev_S=(1+float(d.at[0,'本年累計營收年增率'])/100)*float(d1.iloc[0]['營業收入']/1000)
+        d.at[0,'psrS']=d.at[0,'市值(百萬)']/rev_S
         d.at[0,'去年營收年增率']=(float(d1.iloc[1]['營業收入']/1000 ) /float(d1.iloc[2]['營業收入']/1000 ) -1)*100
     except:
         d.at[0,'去年營收年增率']=np.NaN
+        d.at[0,'psrS']=np.NaN
+        print(lno(),"get_stock_season_composite_income_sheet error  check ",df)
     #print(lno(),r_df.iloc[0])
     #raise
 
-    stk=comm.get_stock_data()
+    stk=get_stock_data()
     psrhigh=[]
     psrlow=[]
     for i in range(0,years):    
@@ -575,10 +580,10 @@ def gen_stock_info(r,debug=0):
         d.at[0,'market']='tse'
     else:
         d.at[0,'market']='otc'  
-    total_stock_nums=comm.get_total_stock_num(stock_id,date)
+    total_stock_nums=get_total_stock_num(stock_id,date)
 
-    d.at[0,'收盤價']=comm.get_stock_last_close(stock_id,date) 
-    d.at[0,'股數(萬張)']=comm.get_total_stock_num(stock_id,date)/10000000
+    d.at[0,'收盤價']=get_stock_last_close(stock_id,date) 
+    d.at[0,'股數(萬張)']=get_total_stock_num(stock_id,date)/10000000
     #1萬張=1千萬股 市值百萬 要x10    
     d.at[0,'市值(百萬)']=d.at[0,'收盤價']*d.at[0,'股數(萬張)']*10
 
@@ -713,7 +718,7 @@ def red_K_ratio_calc(r):
     except :
         return np.nan
 def check_point_K(r):
-    stk=comm.get_stock_data()
+    stk=get_stock_data()
     df1=stk.get_df_by_enddate_num(r.stock_id,r.date,122)
     #print(lno(),df1)
     if len(df1)<90:
@@ -726,14 +731,12 @@ def check_point_K(r):
     return   0
 def gen_pointK_list(date):
     df=comm.get_tse_otc_stock_df_by_date(date)
-    df['close']=df.apply(check_skip_stock,axis=1)  
-    
+    df['close']=df.apply(check_skip_stock,axis=1)
     df = df[~df['close'].isnull()]
-   
     df['point_K']=df.apply(check_point_K,axis=1)
     d=df[(df['point_K']>=1)].copy()
     return d    
- 
+
 def gen_fund_ratio_list(date):
     df=stock_big3.get_stock_big3_date_df(date) 
     def check_fund_skip_stock(r):
@@ -773,7 +776,7 @@ def gen_gg_buy_list(date,rev_date,method):
         d1=d1[d1['市值']<=15000].reset_index(drop=True)
     out=pd.DataFrame()
     for i in range(0,len(d1)):
-    #for i in range(0,10):
+    #for i in range(0,1):
         if d1.iloc[i]['stock_id'].startswith( '25' ):
             continue
         if d1.iloc[i]['stock_id'].startswith( '28' ):
@@ -809,17 +812,45 @@ def gen_gg_buy_list(date,rev_date,method):
     pd.set_option('display.max_colwidth', old_width)  
     out.to_csv('final/{}_good_{}.csv'.format(method,date.strftime('%Y%m%d')),encoding='utf-8', index=False)
     
+g_stk = None
+def get_stock_data():
+    global g_stk
+    if g_stk==None:
+        print(lno(),'111')
+        g_stk=comm.stock_data()
+    return g_stk
     
-        
+import tdcc_dist
+g_tdcc=None
+def get_tdcc_dist():
+    global g_tdcc
+    if g_tdcc==None:
+        g_tdcc=tdcc_dist.tdcc_dist()
+    return g_tdcc 
+
+def get_total_stock_num(stock_id,date):
+    tdcc=get_tdcc_dist() 
+    total_stock_nums=tdcc.get_total_stock_num(stock_id,date)
+    return total_stock_nums
+def get_stock_last_close(stock_id,date):
+    stk=get_stock_data()    
+    df=stk.get_df_by_startdate_enddate(stock_id,date-relativedelta(days=14),date+relativedelta(days=1))  
+    if len(df.index)==0:
+        return np.NaN
+    return df.iloc[-1]['close']
+def get_stock_tdcc_dist_df(r):
+    tdcc=get_tdcc_dist() 
+    df=tdcc.get_df(r.stock_id)
+    return df    
 def get_market_value(r):
     #return 百萬
     date=r.date
     stock_id=r.stock_id
-    total_stock_nums=comm.get_total_stock_num(stock_id,date)
+    total_stock_nums=get_total_stock_num(stock_id,date)
     #print(lno(),r.stock_id,total_stock_nums)
     if total_stock_nums==0:
         return 
-    last_close=comm.get_stock_last_close(stock_id,date)
+    last_close=get_stock_last_close(stock_id,date)
     if last_close==np.NaN:
         return 
     #print(lno(),r.stock_id,total_stock_nums)        
@@ -864,6 +895,17 @@ if __name__ == '__main__':
         gen_gg_buy_list(nowdate,rev_date,"revenue")                      
         gen_gg_buy_list(nowdate,rev_date,"director")    
         gen_gg_buy_list(nowdate,rev_date,"fund")   
+    elif sys.argv[1]=='point' :
+        ## TODO gg gen_analy_data
+        try:    
+            nowdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            nowdate=comm.get_date()  
+        try:    
+            rev_date=datetime.strptime(sys.argv[3],'%Y%m%d')
+        except:
+            rev_date=nowdate-relativedelta(months=1)
+        gen_gg_buy_list(nowdate,rev_date,"pointK")       
     elif sys.argv[1]=='director' :
         ## TODO gg gen_analy_data
         try:    

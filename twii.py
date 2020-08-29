@@ -668,14 +668,14 @@ def show_twii_v1(objdatetime,debug=0):
     #print(lno(),type(startdate),startdate,enddate)
     #print(lno(),type(startdate.to_pydatetime()),startdate.to_pydatetime(),enddate)
     df2=stock_bs_analy.get_stock_bs_bydate(startdate.to_pydatetime(),enddate.to_pydatetime())
-    
-    df2['日期']=[date_sub2time64(x) for x in df2['日期'] ]
     #print(lno(),df2)
-    df=pd.merge(df,df2)
+    if len(df2)!=0:
+        df2['日期']=[date_sub2time64(x) for x in df2['日期'] ]
+        df=pd.merge(df,df2)
     df_big8=twse_big3.get_big8_df()
-    df_big8['日期']=[date_slash2time64(x) for x in df_big8['日期'] ]
-
-    df=pd.merge(df,df_big8,how='left')
+    if len(df_big8)!=0:
+        df_big8['日期']=[date_slash2time64(x) for x in df_big8['日期'] ]
+        df=pd.merge(df,df_big8,how='left')
     
     df['量']=df['量'].astype('int')    
     df['5ma趨勢']=[trend2str(x) for x in df['5ma趨勢'] ]       
@@ -881,12 +881,33 @@ def check_twii_fin(seldata,debug=1,regen=0):
 
     
     tStart = time.time()
-    tse_l1,tse_s1,tse_l2,tse_s2,ll0,ss0=get_stock_long_short_list(comm.get_tse_exchange_data(seldata,ver=1)['stock_id'].values.tolist(),seldata) 
+    tse_l1=0
+    tse_s1=0
+    tse_l2=0
+    tse_s2=0
+    ll0=0
+    ss0=0
+    try:
+        sel_df=comm.get_tse_exchange_data(seldata,ver=1)
+        if len(df):
+            tse_l1,tse_s1,tse_l2,tse_s2,ll0,ss0=get_stock_long_short_list(sel_df['stock_id'].values.tolist(),seldata) 
+    except:
+        pass
     tEnd = time.time()
     print ("It cost %.3f sec" % (tEnd - tStart))   
     #raise
-    
-    otc_l1,otc_s1,otc_l2,otc_s2,ll1,ss1=get_stock_long_short_list(comm.get_otc_exchange_data(seldata,ver=1)['stock_id'].values.tolist(),seldata) 
+    otc_l1=0
+    otc_s1=0
+    otc_l2=0
+    otc_s2=0
+    ll1=0
+    ss1=0    
+    try:
+        sel_df=comm.get_otc_exchange_data(seldata,ver=1)
+        if len(df):
+            otc_l1,otc_s1,otc_l2,otc_s2,ll1,ss1=get_stock_long_short_list(comm.get_otc_exchange_data(seldata,ver=1)['stock_id'].values.tolist(),seldata) 
+    except:
+        pass
     if debug==1:
         print(lno(), df1.tail(2))            
         #print(lno(), tse_list,df_tse.dtypes)  
@@ -998,6 +1019,15 @@ if __name__ == '__main__':
         #dstpath='%s/%d%02d'%(TWIIPATH,int(nowdatetime.year), int(nowdatetime.month))
         #url_get0='http://www.twse.com.tw/exchangeReport/FMTQIK?response=csv&date=%d%02d%02d'%(int(nowdatetime.year),int(nowdatetime.month),int(nowdatetime.day))
         #get_list_form_url_and_save(url_get0,dstpath)
+        download_twii(nowdatetime,nowdatetime)
+        generate_twii_fin(nowdatetime,nowdatetime,regen=1)
+        show_twii_v1(nowdatetime)
+    elif sys.argv[1]=='-d1' :
+        try:
+            nowdatetime=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            print (lno(),'func -p startdata enddate')
+            raise   
         download_twii(nowdatetime,nowdatetime)
         generate_twii_fin(nowdatetime,nowdatetime,regen=1)
         show_twii_v1(nowdatetime)

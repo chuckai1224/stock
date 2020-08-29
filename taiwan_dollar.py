@@ -53,7 +53,8 @@ def down_taiwan_dollar(startdate,enddate):
         # A chunk of 128 bytes
         for chunk in page:
             file.write(chunk)
-    df = pd.read_csv(filename,encoding = 'big5')
+    #print(lno(),filename)        
+    df = pd.read_csv(filename,encoding = 'big5hkscs')
     df.dropna(axis=1,how='all',inplace=True)
     df.dropna(inplace=True)
     #print (lno(),df)
@@ -115,6 +116,9 @@ if __name__ == '__main__':
             startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
             enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
             down_taiwan_dollar(startdate,enddate)  
+        elif len(sys.argv)==3 :
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+            down_taiwan_dollar(startdate,startdate)      
         else :
               print (lno(),'func -p startdata enddate') 
     elif sys.argv[1]=='-g' :

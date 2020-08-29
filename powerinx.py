@@ -288,7 +288,21 @@ if __name__ == '__main__':
             download_otc_sectinx(nowdatetime)
             download_tse_sectinx(nowdatetime)
             nowdatetime=nowdatetime+ relativedelta(days=1)    
-            
+    if len(sys.argv)>1 and sys.argv[1]=='-d' :
+        try:
+            startdate=datetime.strptime(sys.argv[2],'%Y%m%d')
+        except:
+            print (lno(),'func -p startdata enddate')
+            raise   
+        try:
+            enddate=datetime.strptime(sys.argv[3],'%Y%m%d')
+        except:
+            enddate=startdate
+        nowdatetime=startdate
+        while   nowdatetime<=enddate :
+            download_otc_sectinx(nowdatetime)
+            download_tse_sectinx(nowdatetime)
+            nowdatetime=nowdatetime+ relativedelta(days=1) 
     else :
         if len(sys.argv)==2:
             dataday=datetime.strptime(sys.argv[1],'%Y%m%d')

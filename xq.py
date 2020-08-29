@@ -170,7 +170,11 @@ if __name__ == '__main__':
         season =int(sys.argv[3])
         parse_xq_rr(year,season)
             
-    
+    elif sys.argv[1]=='now' :
+        nowdate=datetime.today().date()
+        year =int(nowdate.year)
+        season =int((nowdate.month+2)/3)-1
+        parse_xq_rr(year,season)
          
     elif sys.argv[1]=='gen' :
         if len(sys.argv)==3 :

@@ -155,6 +155,15 @@ class Crawler():
         ## TODO fix craw tse ok need time verify
         columns = ['stock_id','stock_name', 'vol', 'Tnumber','cash','open', 'high', 'low','close','sign','diff','d1','d2','d3','d4','本益比']
         df=pd.DataFrame(text, columns=columns)
+        print(lno(),len(df))
+        def check_skip_stock(r):
+            if len(r.stock_id)!=4:
+                return np.NaN 
+            return r.close    
+        df['close']=df.apply(check_skip_stock,axis=1)
+        df = df[~df['close'].isnull()].reset_index(drop=True)        
+        print(lno(),len(df))
+        #raise 
         #print(lno(),df.open)
         #df['date']=np.datetime64(now_date)
         df['date']='{0}-{1:02d}-{2:02d}'.format(date_tuple[0], date_tuple[1], date_tuple[2])
@@ -288,7 +297,14 @@ class Crawler():
             columns = ['stock_id','stock_name','close','diff', 'open', 'high', 'low', 'av','vol','cash',\
          'Tnumber','b1','dd1','s1','dd2','total_stock','d1','d2','d3']
             df=pd.DataFrame( res, columns=columns)
-            
+        print(lno(),len(df))
+        def check_skip_stock(r):
+            if len(r.stock_id)!=4:
+                return np.NaN 
+            return r.close    
+        df['close']=df.apply(check_skip_stock,axis=1)
+        df = df[~df['close'].isnull()].reset_index(drop=True)        
+        print(lno(),len(df))    
         #now_date=datetime.strptime('{0}{1:02d}{2:02d}'.format(date_tuple[0], date_tuple[1], date_tuple[2]),'%Y%m%d')
         #df['date']=np.datetime64(now_date)
         df['date']='{0}-{1:02d}-{2:02d}'.format(date_tuple[0], date_tuple[1], date_tuple[2])

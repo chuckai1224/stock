@@ -17,6 +17,7 @@ from inspect import currentframe, getframeinfo
 import pandas as pd
 import numpy as np
 import op
+import platform
 #from pyecharts import Kline
 #from pyecharts import Candlestick
 #import webbrowser
@@ -337,6 +338,7 @@ def down_twse_big3(enddate,download=1,debug=1):
     check_dst_folder(save_path)
     enddate_str=enddate.strftime("%Y/%m/%d")
     filename='csv/big3/{}.csv'.format(enddate.strftime("%Y%m%d"))
+    check_dst_folder('csv/big3')
     #if not os.path.exists(filename):
     url='http://www.twse.com.tw/fund/BFI82U?response=csv&dayDate=%d%02d%02d&type=day'%(int(enddate.year),int(enddate.month),int(enddate.day))
     print(lno(),enddate_str)
@@ -926,7 +928,10 @@ def gen_final_html():
     old_width = pd.get_option('display.max_colwidth')
     pd.set_option('display.max_colwidth', -1)
     ##=IMPORThtml("https://raw.githubusercontent.com/chuckai1224/final/master/fut_day_report_fin.html","table",1)
-    df_o.to_html('final/fut_day_report_fin.html',escape=False,index=False,sparsify=True,border=2,index_names=False)
+    if platform.system().upper()=='LINUX':
+        df_o.to_html('final/fut_day_report_fin_1.html',escape=False,index=False,sparsify=True,border=2,index_names=False)
+    else :
+        df_o.to_html('final/fut_day_report_fin.html',escape=False,index=False,sparsify=True,border=2,index_names=False)
     df_o.to_csv('final/mix_report_fin.csv',encoding='utf-8', index=False)
     pd.set_option('display.max_colwidth', old_width)    
          

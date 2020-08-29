@@ -114,10 +114,12 @@ def down_tse_kline(startdate,enddate):
     month=0
     while   nowdatetime>=startdate :
         print (lno(),nowdatetime)
+        if nowdatetime!=enddate:
+            time.sleep(3)
         dstpath='%s/%d%02d'%(TSE_KLINE_PATH,int(nowdatetime.year), int(nowdatetime.month))
         url_get0='http://www.twse.com.tw/indicesReport/MI_5MINS_HIST?response=csv&date=%d%02d%02d'%(int(nowdatetime.year),int(nowdatetime.month),int(nowdatetime.day))
         download_file(url_get0,dstpath)
-        time.sleep(3)
+        
         month=month+1
         nowdatetime = enddate - relativedelta(months=month)
     return []

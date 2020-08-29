@@ -625,6 +625,8 @@ def get_tse_exchange_data(selday,ver=0,debug=0):
             if len(df):
                 df['date']=selday
                 return df
+            else:
+                return pd.DataFrame()    
         except:
             pass
     #date_str = selday.strftime('%Y/%m/%d')

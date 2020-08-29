@@ -1,3 +1,60 @@
+## dayjob
+## 周1~5 下午3點 3點10分
+0,10 15 * * 1-5 /src/stock/bat/linux_day_1500.sh  >/src/stock/log/1500.log
+0,30 18 * * 1-5 /src/stock/bat/linux_day_1800.sh  >/src/stock/log/1800.log
+0 1 * * 1-5 /src/stock/bat/linux_day_2400.sh  >/src/stock/log/2400.log
+0 18 * * 0,6 /src/stock/bat/weekjob.sh >/src/stock/log/week.log
+
+1. linux_day_1500.sh
+    python kline.py -d ==>download 大盤K線 to csv/tse_kline 
+    python fut.py==>
+        down_twse_big3  ==>download 三大法人買賣金額
+        down_fut_big3   ==>download 三大法人期貨多空未平倉口數 契約金額
+        down_op_big3    ==>download 三大法人選擇權多空未平倉口數 契約金額
+        down_fut_top10  ==>download 十大期貨多空未平倉口數
+        down_op_top10   ==>download 十大選擇權多空未平倉口數
+        op.down_optData ==>download 選擇權每日行情
+        op.down_opDelta ==>download 選擇權每日Delta
+        output==> final/fut_day_report_fin.csv
+    python twse_big3.py ==>
+        download 三大法人買賣金額 ==>csv/big3/$date.csv
+        generate_twse_3big==>三大法人紀錄==>csv/big3/big3_data.csv
+        download_big8==>8大行庫download parse ==>csv/big3/big8_data.csv
+    python taiwan_dollar.py ==>
+        download 每日匯率 to csv/taiwan_dollar_data.csv    
+    python op.py ==> 
+        down_op_pc==>download parse op OI 成交量==>csv/op/op_data.csv
+        down_optData==>download parse 選擇權每日行情==>csv/op/optData_$date.csv
+        down_opDelta==>download 選擇權每日Delta ==>csv/op/op_delta_%date.csv
+        fut.down_data==>download 期貨每日行情 ==>data/fut/$date.csv
+        op_plot_v1 ==>generate op plot==>day_report/%date/op.html
+    python powerinx.py d==>
+        download 類股指數 ==>./data/inx/%date_{tse,otc}.csv
+    python big3_fut_op.py==>
+        download 三大期貨選擇權總表(未平倉口數 契約金額)==>csv/fut_op_big3/fut_op_big3_data_oi.csv 
+    python twii.py==>
+        download_twii==>download 月大盤指數==>csv/twii/yymm.csv
+        generate_twii_fin==>csv/twii/twii_data_fin.csv
+        show_twii_v1(nowdatetime)
+
+   
+
+
+
+
+linux_day_1800.sh
+linux_day_2400.sh
+## weekjob
+weekjob.sh==>股權分散
+## month job
+每月營收
+## season job
+eps.py 季報
+xq.py 季研究費用
+
+
+
+
 ## 0420 
 1. get_psrs_div_psr3y_score    gg_stock.py
    psrs/psr 三年低  -1  (-2 << 2)
